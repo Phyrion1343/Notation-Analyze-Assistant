@@ -672,7 +672,7 @@
 
     registerNotation({
         id: 'MTωMN',
-        name: 'MTωMN',
+        name: 'TMωMN',
         placeholder: '例如：()(,,1)(,,2,,2)',
         defaultTimes: 3,
         lexDesc: true,
