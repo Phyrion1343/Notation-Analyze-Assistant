@@ -85,10 +85,10 @@ registerNotation({
     getBadRootIndex(seq) {
         if (!seq || seq.length === 0) return -1;
 
+        const firstItem = seq[0];
         const lastItem = seq[seq.length - 1];
 
-        // 后继情况：末项为 0，展开只是删去末项，不标坏根
-        if (lastItem === 0) return -1;
+        if (lastItem <= firstItem) return -1;
 
         const segmentsData = this.getSegments(seq);
         const segments = segmentsData.segments;
@@ -168,7 +168,38 @@ registerNotation({
 
     isSuccessor(seq) {
         if (!seq || seq.length === 0) return true;
-        return seq[seq.length - 1] === 0;
+        return seq[seq.length - 1] <= seq[0];
+    },
+
+    countStep(seq) {
+        if (!seq || seq.length === 0) return seq;
+    
+        if (this.isSuccessor(seq)) {
+            return seq;
+        }
+    
+        const expanded = this.expand(seq.slice(), 1);
+    
+        if (
+            !expanded ||
+            !expanded.groups ||
+            expanded.groups.length === 0
+        ) {
+            return expanded && expanded.result ? expanded.result : seq;
+        }
+    
+        const nextToken =
+            expanded.groups[1] && expanded.groups[1].length > 0
+                ? expanded.groups[1][0]
+                : expanded.groups[0] && expanded.groups[0].length > 0
+                    ? expanded.groups[0][0]
+                    : null;
+    
+        if (nextToken === null || nextToken === undefined) {
+            return expanded.result || seq;
+        }
+    
+        return seq.slice(0, -1).concat([nextToken]);
     },
 
     expand(seq, times) {
@@ -181,10 +212,10 @@ registerNotation({
             };
         }
 
+        const firstItem = seq[0];
         const lastItem = seq[seq.length - 1];
 
-        // 末项为 0：删去末项
-        if (lastItem === 0) {
+        if (lastItem <= firstItem) {
             const result = seq.slice(0, -1);
 
             return {
