@@ -2334,7 +2334,15 @@ function showHoverDiagramForSequence(seq, event) {
     const tooltip = ensureHoverDiagramTooltip();
     const canvas = tooltip.querySelector('canvas');
 
-    renderDiagramActionsToCanvasCropped(canvas, diagram, 300, 240);
+    const hoverMaxWidth = diagram.hoverMaxWidth || 300;
+    const hoverMaxHeight = diagram.hoverMaxHeight || 240;
+
+    renderDiagramActionsToCanvasCropped(
+        canvas,
+        diagram,
+        hoverMaxWidth,
+        hoverMaxHeight
+    );
 
     tooltip.style.display = 'block';
     moveHoverDiagram(event);

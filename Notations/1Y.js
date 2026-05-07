@@ -1336,6 +1336,10 @@
             width: body.width + padding * 2,
             height: body.height + padding * 2,
             noLimitX: true,
+        
+            hoverMaxWidth: 360,
+            hoverMaxHeight: 360,
+        
             actions: [
                 { type: 'fillStyle', value: 'white' },
                 {
@@ -1450,7 +1454,7 @@
         expand(seq, times) {
             return expandY(seq, times);
         },
-        
+
         drawDiagram(seq) {
             return drawDiagram1Y(seq);
         },

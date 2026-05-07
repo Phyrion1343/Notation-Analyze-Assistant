@@ -515,6 +515,10 @@
                 width: before.width + padding * 2,
                 height: before.height + padding * 2,
                 noLimitX: true,
+            
+                hoverMaxWidth: 360,
+                hoverMaxHeight: 360,
+            
                 actions: [
                     { type: 'fillStyle', value: 'white' },
                     {
@@ -549,6 +553,10 @@
             width: width + padding * 2,
             height: height + padding * 2,
             noLimitX: true,
+        
+            hoverMaxWidth: 360,
+            hoverMaxHeight: 360,
+        
             actions: [
                 { type: 'fillStyle', value: 'white' },
                 {
