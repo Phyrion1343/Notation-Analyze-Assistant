@@ -622,7 +622,7 @@
     }
 
     function format0YLimitItem(item) {
-        return item.expr.join(',');
+        return '{' + item.expr.join(',') + '}';
     }
 
     function drawMountainActions0YCompact(matrixData, colorInfo = null, offsetY = 0) {

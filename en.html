@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.1, maximum-scale=3.0">
@@ -821,63 +821,63 @@ button:active {
 <div class="container">
     <h1>Notation Analyze Assistant</h1>
 
-    <label for="notationSelect">选择记号系统：</label>
+    <label for="notationSelect">Select notation system:</label>
     <select id="notationSelect"></select>
 
-    <label for="sequence">请输入要插入的表达式：</label>
-    <input type="text" id="sequence" placeholder="例如：0,1,2,3,4">
+    <label for="sequence">Enter expression to insert:</label>
+    <input type="text" id="sequence" placeholder="e.g.: 0,1,2,3,4">
 
-    <label for="times">展开次数：</label>
+    <label for="times">Expansion times:</label>
     <input type="number" id="times" value="3" min="0">
 
     <div class="button-group">
-        <button id="insertBtn" class="insert-btn toolbar-btn">插入到末尾</button>
+        <button id="insertBtn" class="insert-btn toolbar-btn">Insert to end</button>
         <label class="option-check">
             <input type="checkbox" id="indentCheckbox" checked>
-            树缩进
+            Tree indent
         </label>     
         <label class="option-check">
             <input type="checkbox" id="centerCheckbox" checked>
-            自动归中
+            Auto center
         </label>        
         <label class="option-check">
             <input type="checkbox" id="analysisCheckbox" checked>
-            分析结果
+            Analysis result
         </label> 
         <label class="option-check">
             <input type="checkbox" id="columnLabelsCheckbox" checked>
-            列标
+            Column labels
         </label>
         <label class="option-check">
             <input type="checkbox" id="diagramCheckbox">
-            图示(iblp等)
+            Diagram (iblp etc.)
         </label>
         <label class="option-check">
             <input type="checkbox" id="countSequenceCheckbox">
-            计数序列
+            Count sequence
         </label>
         <label class="option-check" id="resultCountSequenceOption" style="display:none;">
             <input type="checkbox" id="resultCountSequenceCheckbox">
-            展开结果计数
+            Count sequence of expanded result
         </label>        
         <label class="option-check" id="countSuccessorOptions" style="display:none;">
-            后继元素:
+            Successor element:
             <input type="radio" name="countSuccessorElement" value="0">
             0
             <input type="radio" name="countSuccessorElement" value="1" checked>
             1
         </label>
         <label class="option-check">
-            字号:
+            Font Size:
             <input type="number" id="sequenceFontSizeInput" class="font-size-input" value="17" min="10" max="40" step="1">
             px
         </label>
 
         <div class="toolbar-break"></div>
 
-        <button id="saveAnalysisBtn" class="save-analysis-btn toolbar-btn">保存分析结果</button>
-        <button id="loadAnalysisBtn" class="load-analysis-btn toolbar-btn">加载分析结果</button>
-        <button id="reloadBtn" class="reload-btn toolbar-btn">清空当前列表</button>        
+        <button id="saveAnalysisBtn" class="save-analysis-btn toolbar-btn">Save analysis results</button>
+        <button id="loadAnalysisBtn" class="load-analysis-btn toolbar-btn">Load analysis results</button>
+        <button id="reloadBtn" class="reload-btn toolbar-btn">Clear current list</button>        
     </div>
 
     <input type="file" id="fileInput" accept=".txt">
@@ -933,7 +933,7 @@ const timesInput = document.getElementById('times');
 const outputDiv = document.getElementById('output');
 
 function registerNotation(adapter) {
-    if (!adapter.id) throw new Error('记号系统必须有 id');
+    if (!adapter.id) throw new Error('Notation system must have an id');
 
     if (adapter.lexDesc !== false) adapter.lexDesc = true;
     if (adapter.compactTokens !== true) adapter.compactTokens = false;
@@ -1031,7 +1031,7 @@ function showError(message) {
 }
 
 /* ============================================================
-   2. 复制表达式、分析结果的保存和加载
+   2. Copy表达式、Analysis result的保存和加载
 ============================================================ */
 
 async function copyToClipboard(text, buttonElement) {
@@ -1052,7 +1052,7 @@ async function copyToClipboard(text, buttonElement) {
     const oldText = buttonElement.textContent;
     const oldClass = buttonElement.className;
 
-    buttonElement.textContent = '已复制';
+    buttonElement.textContent = 'Copied';
     buttonElement.classList.add('copy-success');
 
     setTimeout(() => {
@@ -1104,7 +1104,7 @@ function saveAnalysisResults() {
     }
 
     if (!content.trim()) {
-        alert('没有可保存的分析结果！');
+        alert('No analysis results to save!');
         return;
     }
 
@@ -1120,7 +1120,7 @@ function saveAnalysisResults() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    alert('分析结果已保存！');
+    alert('Analysis results saved!');
 }
 
 function loadAnalysisResults(event) {
@@ -1167,7 +1167,7 @@ function loadAnalysisResults(event) {
         });
 
         updateDisplay();
-        alert(`成功加载 ${count} 条分析结果！`);
+        alert(`Successfully loaded ${count} analysis results!`);
     };
 
     reader.readAsText(file, 'UTF-8');
@@ -1236,12 +1236,12 @@ function insertSequence() {
     const times = parseInt(timesInput.value, 10);
 
     if (!input) {
-        alert('请输入要插入的表达式！');
+        alert('Please enter an expression!');
         return;
     }
 
     if (isNaN(times) || times < 0) {
-        alert('展开次数必须是非负整数！');
+        alert('Expansion times must be a non-negative integer!');
         return;
     }
 
@@ -1249,7 +1249,7 @@ function insertSequence() {
     try {
         parsed = adapter.parse(input);
     } catch (err) {
-        alert(err.message || '无法识别输入');
+        alert(err.message || 'Unable to parse input');
         return;
     }
 
@@ -1257,7 +1257,7 @@ function insertSequence() {
 
     const exists = state.history.some(r => !r.isLimit && r.source === normalized);
     if (exists) {
-        alert('该表达式已经存在于展开树中！');
+        alert('This expression already exists in the expansion tree!');
         return;
     }
 
@@ -1276,7 +1276,7 @@ function performExpansion(sourceText, times, isRoot = false, parentId = null, in
     try {
         parsed = adapter.parse(sourceText);
     } catch (err) {
-        showError(err.message || '无法识别输入');
+        showError(err.message || 'Unable to parse input');
         return;
     }
 
@@ -1285,12 +1285,12 @@ function performExpansion(sourceText, times, isRoot = false, parentId = null, in
     try {
         expanded = adapter.expand(clone(parsed), times);
     } catch (err) {
-        showError('展开错误：' + err.message);
+        showError('Expansion error: ' + err.message);
         return;
     }
 
     if (!expanded || !expanded.result) {
-        showError('该表达式无法展开');
+        showError('This expression cannot be expanded');
         return;
     }
 
@@ -1365,7 +1365,7 @@ function continueExpansion(recordId) {
     try {
         expanded = adapter.expand(clone(record.parsed), newTimes);
     } catch (err) {
-        alert('继续展开失败：' + err.message);
+        alert('Failed to continue expansion: ' + err.message);
         return;
     }
 
@@ -1379,7 +1379,7 @@ function continueExpansion(recordId) {
 }
 
 /* ============================================================
-   5. 删除树、插入位置
+   5. Delete树、插入位置
 ============================================================ */
 
 function deleteExpansion(recordId) {
@@ -1389,11 +1389,11 @@ function deleteExpansion(recordId) {
     if (!record) return;
 
     if (record.isLimit) {
-        alert('极限表达式不能删除！');
+        alert('Limit expression cannot be deleted!');
         return;
     }
 
-    if (!confirm('确定要删除这个展开树及其所有子级吗？')) return;
+    if (!confirm('Delete this expansion tree and all of its descendants?')) return;
 
     const ids = [];
 
@@ -1425,7 +1425,7 @@ function setInsertAfter(recordId) {
     state.insertAfterTarget = recordId;
 
     const insertBtn = document.getElementById('insertBtn');
-    insertBtn.textContent = '插入到选中位置之后';
+    insertBtn.textContent = 'Insert after selected item';
 
     insertBtn.removeAttribute('style');
 
@@ -1441,7 +1441,7 @@ function cancelInsertAfter(refresh = true) {
     state.insertAfterTarget = null;
 
     const insertBtn = document.getElementById('insertBtn');
-    insertBtn.textContent = '插入到末尾';
+    insertBtn.textContent = 'Insert to end';
 
     insertBtn.removeAttribute('style');
 
@@ -1786,7 +1786,7 @@ function createCountSequenceLine(record, useResult = false) {
         }
     });
 
-    const label = useResult ? '计数序列:' : '计数序列:';
+    const label = useResult ? 'Count sequence:' : 'Count sequence:';
 
     return `
         <div class="analysis-line">
@@ -2033,27 +2033,27 @@ function updateDisplay() {
         `;
 
         if (record.isLimit) {
-            html += `<span>极限表达式:</span>`;
+            html += `<span>Limit:</span>`;
             html += createClickableSequence(record, { plus: true, ellipsis: true });
         } else if (record.isRoot) {
-            html += `<span>原表达式: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
+            html += `<span>Expression: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
         } else {
-            html += `<span>截取表达式: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
+            html += `<span>Expression: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
         }
 
         html += `
-                    <button class="small-btn copy-btn" data-action="copy" data-expansion-id="${record.id}">复制</button>
+                    <button class="small-btn copy-btn" data-action="copy" data-expansion-id="${record.id}">Copy</button>
         `;
 
         if (!record.isLimit) {
             html += `
-                    <button class="small-btn delete-btn" data-action="delete" data-expansion-id="${record.id}">删除</button>
-                    <button class="small-btn insert-after-btn" data-action="insert-after" data-expansion-id="${record.id}">在此之后插入</button>
+                    <button class="small-btn delete-btn" data-action="delete" data-expansion-id="${record.id}">Delete</button>
+                    <button class="small-btn insert-after-btn" data-action="insert-after" data-expansion-id="${record.id}">Insert after here</button>
             `;
         }
 
         html += `
-                    <span style="margin-left:10px;color:#666;font-size:12px;">(层级${record.level})</span>
+                    <span style="margin-left:10px;color:#666;font-size:12px;">(Level${record.level})</span>
                 </div>
         `;
 
@@ -2062,7 +2062,7 @@ function updateDisplay() {
 
             html += `
                 <div class="expansion-result">
-                    展开结果: ${createClickableSequence(record, { plus: true })}
+                    Result: ${createClickableSequence(record, { plus: true })}
                 </div>
             `;
             
@@ -2073,13 +2073,13 @@ function updateDisplay() {
             const value = getAnalysisValue(currentNotationId, record.source);
             html += `
                 <div class="analysis-line">
-                    <span class="analysis-line-label">分析结果:</span>
+                    <span class="analysis-line-label">Analysis result:</span>
                     <input type="text"
                         class="analysis-input"
                         data-notation-id="${escapeHTML(currentNotationId)}"
                         data-sequence="${escapeHTML(record.source)}"
                         value="${escapeHTML(value)}"
-                        placeholder="在此输入...">
+                        placeholder="Enter here...">
                 </div>
             `;
         }
@@ -2753,7 +2753,7 @@ document.getElementById('fileInput').addEventListener('change', loadAnalysisResu
 document.getElementById('reloadBtn').addEventListener('click', () => {
     const state = getState();
 
-    if (state.history.length > 1 && !confirm('确定要清空当前记号的所有展开树吗？')) {
+    if (state.history.length > 1 && !confirm('Clear all expansion trees of the current notation?')) {
         return;
     }
 
@@ -2842,14 +2842,14 @@ function init() {
 registerNotation({
     id: 'pps',
     name: '*PPS',
-    placeholder: '例如：0,1,0,1',
+    placeholder: 'e.g.: 0,1,0,1',
     defaultTimes: 3,
     lexDesc: true,
 
     parse(input) {
         input = input.trim();
         if (!/^-?\d+(,-?\d+)*$/.test(input)) {
-            throw new Error('PPS 只能输入逗号分隔的整数');
+            throw new Error('PPS only accepts comma-separated integers');
         }
         return input.split(',').map(Number);
     },
