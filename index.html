@@ -735,6 +735,12 @@ button:active {
     font-size: var(--sequence-number-font-size) !important;
 }
 
+.clickable-number {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
 /* 手机端 */
 @media (max-width: 768px) {
     body {
@@ -893,6 +899,17 @@ let currentNotationId = null;
 let showDiagrams = true;
 let diagramCounter = 0;
 let hoverDiagramTooltip = null;
+
+//手机端图示
+let touchDiagramTimer = null;
+let touchDiagramShown = false;
+let suppressNextTokenClick = false;
+let lastTouchTime = 0;
+let touchStartPoint = null;
+
+const TOUCH_LONG_PRESS_MS = 520;
+const TOUCH_MOVE_CANCEL_DISTANCE = 12;
+//
 
 let indentEnabled = true;
 let showAnalysis = false;
@@ -2110,6 +2127,13 @@ function hideHoverDiagram() {
     }
 }
 
+function clearTouchDiagramTimer() {
+    if (touchDiagramTimer) {
+        clearTimeout(touchDiagramTimer);
+        touchDiagramTimer = null;
+    }
+}
+
 function moveHoverDiagram(event) {
     if (!hoverDiagramTooltip) return;
     if (hoverDiagramTooltip.style.display === 'none') return;
@@ -2467,6 +2491,12 @@ outputDiv.addEventListener('click', event => {
     }
 
     if (action === 'token') {
+        if (suppressNextTokenClick) {
+            event.preventDefault();
+            event.stopPropagation();
+            suppressNextTokenClick = false;
+            return;
+        }
         const index = Number(target.dataset.tokenIndex);
         let selectedSeq;
 
@@ -2496,6 +2526,8 @@ outputDiv.addEventListener('click', event => {
 });
 
 outputDiv.addEventListener('mouseover', event => {
+    if (Date.now() - lastTouchTime < 900) return;
+
     const target = event.target.closest('[data-action="token"]');
     if (!target) return;
 
@@ -2524,6 +2556,127 @@ outputDiv.addEventListener('mouseout', event => {
     if (related && target.contains(related)) return;
 
     clearHoverHighlight();
+});
+
+//手机端图示
+outputDiv.addEventListener('touchstart', event => {
+    lastTouchTime = Date.now();
+
+    const target = event.target.closest('[data-action="token"]');
+
+    // 如果不是按在 token 上，就不启动长按
+    if (!target) return;
+
+    if (!showDiagrams) return;
+
+    const touch = event.touches && event.touches[0];
+    if (!touch) return;
+
+    const id = Number(target.dataset.expansionId);
+    const index = Number(target.dataset.tokenIndex);
+
+    if (!Number.isFinite(id) || !Number.isFinite(index)) return;
+
+    clearTouchDiagramTimer();
+
+    touchStartPoint = {
+        x: touch.clientX,
+        y: touch.clientY
+    };
+
+    touchDiagramTimer = setTimeout(() => {
+        const fakeEvent = {
+            clientX: touchStartPoint.x,
+            clientY: touchStartPoint.y
+        };
+
+        handleTokenHover(id, index, fakeEvent);
+
+        touchDiagramShown = true;
+
+        // 防止长按结束后又触发 click 插入
+        suppressNextTokenClick = true;
+    }, TOUCH_LONG_PRESS_MS);
+}, { passive: true });
+
+
+outputDiv.addEventListener('touchmove', event => {
+    lastTouchTime = Date.now();
+
+    const touch = event.touches && event.touches[0];
+    if (!touch || !touchStartPoint) return;
+
+    const dx = touch.clientX - touchStartPoint.x;
+    const dy = touch.clientY - touchStartPoint.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // 如果还没显示图示，移动太多就取消长按
+    if (!touchDiagramShown && dist > TOUCH_MOVE_CANCEL_DISTANCE) {
+        clearTouchDiagramTimer();
+        return;
+    }
+
+    // 如果图示已经显示，则跟随手指移动
+    if (touchDiagramShown) {
+        moveHoverDiagram({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    }
+}, { passive: true });
+
+
+outputDiv.addEventListener('touchend', event => {
+    lastTouchTime = Date.now();
+    clearTouchDiagramTimer();
+    touchStartPoint = null;
+}, { passive: true });
+
+
+outputDiv.addEventListener('touchcancel', event => {
+    lastTouchTime = Date.now();
+    clearTouchDiagramTimer();
+    touchStartPoint = null;
+}, { passive: true });
+
+document.addEventListener('touchstart', event => {
+    lastTouchTime = Date.now();
+
+    const isToken = event.target.closest?.('[data-action="token"]');
+    const isTooltip = hoverDiagramTooltip && hoverDiagramTooltip.contains(event.target);
+
+    // 点在 token 上，不关闭，因为可能要长按显示图示
+    if (isToken) return;
+
+    // 点在图示自己上，也不关闭
+    if (isTooltip) return;
+
+    clearTouchDiagramTimer();
+    clearHoverHighlight();
+    touchDiagramShown = false;
+    suppressNextTokenClick = false;
+}, { passive: true });
+
+
+document.addEventListener('click', event => {
+    const isToken = event.target.closest?.('[data-action="token"]');
+    const isTooltip = hoverDiagramTooltip && hoverDiagramTooltip.contains(event.target);
+
+    if (isToken || isTooltip) return;
+
+    clearTouchDiagramTimer();
+    clearHoverHighlight();
+    touchDiagramShown = false;
+    suppressNextTokenClick = false;
+});
+
+outputDiv.addEventListener('contextmenu', event => {
+    const target = event.target.closest('[data-action="token"]');
+    if (!target) return;
+
+    if (showDiagrams) {
+        event.preventDefault();
+    }
 });
 
 /* ============================================================
