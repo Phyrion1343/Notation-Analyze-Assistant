@@ -1,0 +1,3518 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, minimum-scale=0.1, maximum-scale=3.0">
+<title>Notation Analyze Assistant</title>
+
+<style>
+:root {
+    --page-bg: #f6f7f8;
+    --page-bg-2: #eef0f2;
+
+    --panel-bg: #fafafa;
+    --panel-bg-soft: #f4f5f6;
+    --tree-bg: #ffffff;
+    --tree-bg-alt: #f7f8f9;
+    --tree-bg-deep: #f1f3f4;
+
+    --text: #2f3e35;
+    --muted: #68766d;
+
+    --border: #cfded4;
+    --border-strong: #aebfb4;
+
+    --primary: #5f8f73;
+    --primary-hover: #4d7a60;
+
+    --danger: #b95b5b;
+    --danger-hover: #9f4747;
+
+    --warning: #b88745;
+    --warning-hover: #9f7135;
+
+    --info: #5f8792;
+    --info-hover: #4e737d;
+
+    --shadow: rgba(47, 62, 53, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, "Microsoft YaHei", "PingFang SC", sans-serif;
+    margin: 20px;
+    color: var(--text);
+    background:
+        radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.85), transparent 26%),
+        radial-gradient(circle at 82% 6%, rgba(214, 235, 221, 0.65), transparent 28%),
+        linear-gradient(135deg, var(--page-bg) 0%, var(--page-bg-2) 100%);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: #26362d;
+    letter-spacing: 0.2px;
+    font-weight: 650;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+    color: var(--text);
+}
+
+input[type="text"],
+input[type="number"],
+select {
+    width: 100%;
+    padding: 8px 10px;
+    margin-top: 5px;
+    box-sizing: border-box;
+    color: var(--text);
+    background-color: rgba(255, 255, 255, 0.78);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+    border-color: var(--primary);
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(95, 143, 115, 0.14);
+}
+
+button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #ffffff;
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    cursor: pointer;
+    border-radius: 4px;
+    font-weight: 500;
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.05s ease;
+}
+
+button:hover {
+    background-color: #f0f6f2;
+    border-color: var(--primary);
+    color: #294034;
+    box-shadow: 0 2px 8px rgba(47, 62, 53, 0.08);
+}
+
+button:active {
+    background-color: #e4eee7;
+    transform: translateY(1px);
+}
+
+.output {
+    margin-top: 20px;
+    padding: 12px;
+    background-color: rgba(248, 251, 248, 0.78);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    overflow-y: auto;
+    max-width: 100%;
+    max-height: 500px;
+    box-shadow: inset 0 1px 3px rgba(47, 62, 53, 0.04);
+}
+
+.expansion-item {
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    white-space: nowrap;
+    min-width: max-content;
+    position: relative;
+    background-color: var(--tree-bg) !important;
+    box-shadow: 0 1px 4px rgba(47, 62, 53, 0.04);
+}
+
+.expansion-item:not(.limit-expression) {
+    background-color: var(--tree-bg) !important;
+}
+
+.expansion-title {
+    font-weight: bold;
+    margin-bottom: 3px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.expansion-result {
+    line-height: 1.4;
+    margin-bottom: 3px;
+    margin-top: 3px;
+}
+
+.analysis-line {
+    line-height: 1.4;
+    color: #333;
+    white-space: nowrap;
+    margin-top: 0;
+    margin-bottom: 0;
+    height: auto;
+    display: block;
+}
+
+.analysis-line-label {
+    font-weight: bold;
+    margin-right: 5px;
+    line-height: 1.4;
+    vertical-align: baseline;
+}
+
+.analysis-input {
+    border: none;
+    border-bottom: 1px solid #cbd5e1;
+    background: transparent;
+    padding: 0 3px;
+    margin: 0;
+    font-size: 14px;
+    width: 300px;
+    outline: none;
+
+    height: 18px;
+    line-height: 18px;
+    vertical-align: baseline;
+
+    box-sizing: border-box;
+}
+
+.analysis-input:focus {
+    border-bottom-color: var(--primary);
+}
+
+.clickable-number {
+    cursor: pointer;
+    text-decoration: none;
+    margin: 0 1px;
+    display: inline-block;
+    transition: none;
+}
+
+.clickable-number-yellow {
+    color: #d97706;
+}
+
+.clickable-number-blue {
+    color: #007bff;
+}
+
+.clickable-number-green {
+    color: #059669;
+}
+
+.clickable-number-red {
+    color: #dc2626;
+    background-color: #fef2f2;
+    border-radius: 3px;
+}
+
+.clickable-number:hover {
+    background-color: #f0f8ff;
+}
+
+.clickable-number-red:hover {
+    background-color: #fecaca;
+}
+
+.hover-target-highlight {
+    background-color: #fbbf24 !important;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+    border-radius: 3px;
+}
+
+.static-number {
+    margin: 0 1px;
+    display: inline-block;
+}
+
+.static-number-red {
+    color: #dc2626;
+    background-color: #fef2f2;
+    border-radius: 3px;
+}
+
+.small-btn {
+    border: 1px solid transparent;
+    padding: 2px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    margin: 0;
+    color: white;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1.2;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+.copy-btn {
+    background-color: #f2fbfc;
+    border-color: #b7e3e9;
+    color: #2c7280;
+}
+
+.copy-btn:hover {
+    background-color: #e6f6f8;
+    border-color: #90d3de;
+    color: #1d5f6b;
+}
+
+.copy-success {
+    background-color: #eefaf3 !important;
+    border-color: #a7ddb8 !important;
+    color: #2d7650 !important;
+}
+
+.delete-btn {
+    background-color: #fff5f6;
+    border-color: #efc2c8;
+    color: #9a4854;
+}
+
+.delete-btn:hover {
+    background-color: #ffe9ec;
+    border-color: #e6a5ae;
+    color: #7f3742;
+}
+
+.insert-after-btn {
+    background-color: #fff9ee;
+    border-color: #ead29e;
+    color: #806123;
+}
+
+.insert-after-btn:hover {
+    background-color: #fff1d8;
+    border-color: #dec077;
+    color: #664c18;
+}
+
+.insert-btn,
+.toggle-indent-btn,
+.toggle-analysis-btn,
+.toggle-center-btn,
+.save-analysis-btn,
+.load-analysis-btn,
+.reload-btn {
+    background-color: #ffffff;
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+}
+
+.insert-btn:hover,
+.toggle-indent-btn:hover,
+.toggle-analysis-btn:hover,
+.toggle-center-btn:hover,
+.save-analysis-btn:hover,
+.load-analysis-btn:hover,
+.reload-btn:hover {
+    background-color: #edf5ef;
+    border-color: var(--primary);
+    color: #274032;
+}
+
+.insert-btn {
+    background-color: #f7fbf8;
+    border-color: var(--primary);
+    color: #355846;
+}
+
+.save-analysis-btn,
+.load-analysis-btn {
+    background-color: #ffffff;
+}
+
+.reload-btn {
+    border-color: #c9aaa4;
+    color: #7d4a43;
+    background-color: #fffafa;
+}
+
+.reload-btn:hover {
+    background-color: #f6eeee;
+    border-color: #b95b5b;
+    color: #713d38;
+}
+
+.expand-more-btn {
+    margin: 0 0 0 4px;
+    padding: 0;
+    width: 18px;
+    height: 18px;
+    line-height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: #ffffff;
+    color: #4f6f5c;
+    border: 1px solid #9eb7a6;
+    border-radius: 999px;
+
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    vertical-align: middle;
+    box-sizing: border-box;
+    transform: translateY(1px);
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.expand-more-btn:hover {
+    background-color: #edf7f0;
+    color: #365943;
+    border-color: #7fa78d;
+    box-shadow: 0 0 0 3px rgba(127, 167, 141, 0.18);
+}
+
+.expand-more-btn:active {
+    background-color: #dfeee5;
+    transform: translateY(1px);
+}
+
+.limit-expression {
+    background-color: #e8f3eb !important;
+    border-color: #9fc6aa !important;
+}
+
+.limit-expression .sequence-container .clickable-number {
+    color: #333 !important;
+    font-weight: 600;
+}
+
+.output::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.output::-webkit-scrollbar-track {
+    background: #edf4ef;
+    border-radius: 4px;
+}
+
+.output::-webkit-scrollbar-thumb {
+    background: #9caea2;
+    border-radius: 4px;
+}
+
+.output::-webkit-scrollbar-thumb:hover {
+    background: #7f9488;
+}
+
+.button-group {
+    display: flex;
+    column-gap: 10px;   
+    row-gap: 2px;       
+    margin-top: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.toolbar-btn {
+    margin-top: 0;
+    padding: 5px 12px;
+    font-size: 13px;
+    border-radius: 4px;
+    line-height: 1.2;
+    font-weight: 500;
+}
+
+#fileInput {
+    display: none;
+}
+
+.error {
+    color: #9f4747;
+    padding: 10px;
+    background-color: #f8eeee;
+    border: 1px solid #dfb8b8;
+    border-radius: 4px;
+}
+
+.option-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 0;
+    padding: 4px 2px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    line-height: 1.2;
+}
+
+.option-check input[type="checkbox"] {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.sequence-container {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0;
+}
+
+.sequence-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.column-label {
+    font-size: 10px;
+    color: #888;
+    line-height: 1;
+    height: 12px;
+    margin-top: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.static-number,
+.static-comma,
+.clickable-number,
+.comma {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.clickable-number,
+.comma {
+    font-weight: normal;
+}
+
+.title-sequence .static-number,
+.title-sequence .static-comma {
+    font-weight: 600;
+}
+
+.compact-sequence {
+    display: inline;
+    white-space: nowrap;
+}
+
+.compact-sequence .token-group {
+    display: inline;
+    margin: 0;
+    padding: 0 1px;
+    border-radius: 3px;
+}
+
+.compact-sequence .clickable-number,
+.compact-sequence .static-number,
+.compact-sequence .comma,
+.compact-sequence .static-comma {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    vertical-align: baseline;
+    line-height: normal;
+}
+
+.compact-sequence .comma,
+.compact-sequence .static-comma {
+    color: inherit;
+    background: transparent;
+}
+
+.compact-sequence .bad-root-group {
+    color: #dc2626;
+    background-color: #fef2f2;
+    border-radius: 3px;
+}
+
+.compact-sequence .bad-root-group .clickable-number,
+.compact-sequence .bad-root-group .static-number,
+.compact-sequence .bad-root-group .comma,
+.compact-sequence .bad-root-group .static-comma {
+    color: inherit !important;
+    background: transparent !important;
+}
+
+.compact-sequence .token-group.hover-target-highlight {
+    background-color: #fbbf24 !important;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+}
+
+.compact-sequence .expand-more-btn {
+    margin-left: 4px;
+}
+
+.sequence-container.compact-sequence {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    white-space: nowrap !important;
+}
+
+.sequence-container.compact-sequence > .sequence-column {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    padding: 0 1px !important;
+    box-sizing: border-box !important;
+}
+
+.sequence-container.compact-sequence .compact-token-group {
+    display: inline !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.sequence-container.compact-sequence .clickable-number,
+.sequence-container.compact-sequence .static-number,
+.sequence-container.compact-sequence .comma,
+.sequence-container.compact-sequence .static-comma {
+    display: inline !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    vertical-align: baseline !important;
+    line-height: 1.2 !important;
+}
+
+.sequence-container.compact-sequence .column-label {
+    font-size: 10px !important;
+    color: #888 !important;
+    line-height: 1 !important;
+    height: 12px !important;
+    margin-top: 2px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.sequence-container.compact-sequence .compact-token-group.hover-target-highlight,
+.sequence-container.compact-sequence .compact-token-group.hover-target-highlight *,
+.sequence-container.compact-sequence .compact-token-group.hover-target-highlight .clickable-number,
+.sequence-container.compact-sequence .compact-token-group.hover-target-highlight .clickable-number:hover,
+.sequence-container.compact-sequence .compact-token-group.hover-target-highlight .comma,
+.sequence-container.compact-sequence .compact-token-group.hover-target-highlight .static-number,
+.sequence-container.compact-sequence .compact-token-group.hover-target-highlight .static-comma {
+    background-color: #fbbf24 !important;
+    color: #111 !important;
+}
+
+.sequence-container.compact-sequence .compact-token-group.hover-target-highlight {
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.6) !important;
+    border-radius: 3px !important;
+    display: inline-block !important;
+}
+
+.clickable-number:hover {
+    background-color: #e0f2fe !important;
+    box-shadow: inset 0 0 0 1px #7dd3fc;
+    border-radius: 3px;
+}
+
+.clickable-number-red:hover {
+    background-color: #fecaca !important;
+    box-shadow: inset 0 0 0 1px #f87171;
+    border-radius: 3px;
+}
+
+.hover-diagram-tooltip {
+    position: fixed;
+    z-index: 99999;
+    pointer-events: none;
+
+    max-width: none;
+    max-height: 80vh;
+    overflow: hidden;
+
+    background: white;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+    padding: 4px;
+
+    display: none;
+}
+
+.hover-diagram-tooltip canvas {
+    display: block;
+}
+
+.toolbar-break {
+    flex-basis: 100%;
+    height: 0;
+}
+
+#insertBtn.insert-after-active {
+    background-color: #fff1d8;
+    border-color: #dec077;
+    color: #664c18;
+    box-shadow: 0 0 0 3px rgba(222, 192, 119, 0.20);
+}
+
+#insertBtn.insert-after-active:hover {
+    background-color: #ffe8bd;
+    border-color: #d5ad52;
+    color: #523b10;
+    box-shadow: 0 2px 8px rgba(128, 97, 35, 0.16),
+                0 0 0 3px rgba(222, 192, 119, 0.24);
+}
+
+#insertBtn.insert-after-active:active {
+    background-color: #f6dca6;
+    transform: translateY(1px);
+}
+
+
+/* 手机端 */
+@media (max-width: 768px) {
+    body {
+        margin: 10px;
+        font-size: 14px;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    button {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    .expansion-item {
+        margin-bottom: 6px;
+        padding: 6px;
+        font-size: 13px;
+    }
+
+    .small-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    .output {
+        padding: 8px;
+        font-size: 12px;
+        max-height: 400px;
+    }
+
+    .analysis-input {
+        width: calc(100% - 80px);
+        font-size: 12px;
+    }
+
+    .title-sequence .static-number,
+    .title-sequence .static-comma {
+        font-size: 16px;
+    }
+
+    .limit-expression .sequence-container,
+    .expansion-result .clickable-number,
+    .expansion-result .static-number,
+    .expansion-result .comma,
+    .expansion-result .static-comma {
+        font-size: 16px;
+    }
+}
+
+@media (min-width: 769px) {
+    .title-sequence .static-number,
+    .title-sequence .static-comma,
+    .expansion-result .clickable-number,
+    .expansion-result .static-number,
+    .expansion-result .comma,
+    .expansion-result .static-comma {
+        font-size: 17px;
+    }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+    <h1>Notation Analyze Assistant</h1>
+
+    <label for="notationSelect">选择记号系统：</label>
+    <select id="notationSelect"></select>
+
+    <label for="sequence">请输入要插入的表达式：</label>
+    <input type="text" id="sequence" placeholder="例如：0,1,2,3,4">
+
+    <label for="times">展开次数：</label>
+    <input type="number" id="times" value="3" min="0">
+
+    <div class="button-group">
+        <button id="insertBtn" class="insert-btn toolbar-btn">插入到末尾</button>
+        <label class="option-check">
+            <input type="checkbox" id="indentCheckbox" checked>
+            树缩进
+        </label>     
+        <label class="option-check">
+            <input type="checkbox" id="centerCheckbox" checked>
+            自动归中
+        </label>        
+        <label class="option-check">
+            <input type="checkbox" id="analysisCheckbox" checked>
+            分析结果
+        </label> 
+        <label class="option-check">
+            <input type="checkbox" id="columnLabelsCheckbox" checked>
+            列标
+        </label>
+        <label class="option-check">
+            <input type="checkbox" id="diagramCheckbox">
+            图示(iblp等)
+        </label>
+        <label class="option-check">
+            <input type="checkbox" id="countSequenceCheckbox">
+            计数序列
+        </label>
+        
+        <label class="option-check" id="countSuccessorOptions" style="display:none;">
+            后继元素:
+            <input type="radio" name="countSuccessorElement" value="0">
+            0
+            <input type="radio" name="countSuccessorElement" value="1" checked>
+            1
+        </label>
+        <label class="option-check" id="resultCountSequenceOption" style="display:none;">
+            <input type="checkbox" id="resultCountSequenceCheckbox">
+            展开结果计数
+        </label>
+
+        <div class="toolbar-break"></div>
+
+        <button id="saveAnalysisBtn" class="save-analysis-btn toolbar-btn">保存分析结果</button>
+        <button id="loadAnalysisBtn" class="load-analysis-btn toolbar-btn">加载分析结果</button>
+        <button id="reloadBtn" class="reload-btn toolbar-btn">清空当前列表</button>        
+    </div>
+
+    <input type="file" id="fileInput" accept=".txt">
+
+    <div class="output" id="output"></div>
+</div>
+
+<script>
+/* ============================================================
+   1. 通用状态
+============================================================ */
+
+const notationRegistry = {};
+const notationStates = {};
+
+let currentNotationId = null;
+
+let showDiagrams = true;
+let diagramCounter = 0;
+let hoverDiagramTooltip = null;
+
+let indentEnabled = true;
+let showAnalysis = false;
+let autoCenterEnabled = true;
+let showColumnLabels = false;
+
+let showCountSequence = false;
+let countSuccessorElement = 1;
+let showResultCountSequence = false;
+
+const notationSelect = document.getElementById('notationSelect');
+const sequenceInput = document.getElementById('sequence');
+const timesInput = document.getElementById('times');
+const outputDiv = document.getElementById('output');
+
+function registerNotation(adapter) {
+    if (!adapter.id) throw new Error('记号系统必须有 id');
+
+    if (adapter.lexDesc !== false) adapter.lexDesc = true;
+    if (adapter.compactTokens !== true) adapter.compactTokens = false;
+
+    if (!adapter.separator) {
+        adapter.separator = () => ',';
+    }
+
+    if (!adapter.getTokenGroupKey) {
+        adapter.getTokenGroupKey = (token, index) => index;
+    }
+
+    if (!adapter.isBadRootToken) {
+        adapter.isBadRootToken = (record, index) => index === record.badRootIndex;
+    }
+
+    if (!adapter.getHoverTargetIndices) {
+        adapter.getHoverTargetIndices = (seq, badIndex) => [badIndex];
+    }
+
+    notationRegistry[adapter.id] = adapter;
+
+    notationStates[adapter.id] = {
+        history: [],
+        counter: 0,
+        insertAfterTarget: null,
+        analysisData: {}
+    };
+}
+
+function getAdapter() {
+    return notationRegistry[currentNotationId];
+}
+
+function getState() {
+    return notationStates[currentNotationId];
+}
+
+function clone(x) {
+    return JSON.parse(JSON.stringify(x));
+}
+
+function escapeHTML(str) {
+    return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function makeAnalysisKey(notationId, source) {
+    return `${notationId}||${source}`;
+}
+
+function getAnalysisValue(notationId, source) {
+    const state = notationStates[notationId];
+    if (!state) return '';
+
+    const key = makeAnalysisKey(notationId, source);
+    return state.analysisData[key] || '';
+}
+
+function isMobile() {
+    return window.innerWidth <= 768;
+}
+
+function getLevelColor(level) {
+    const colors = [
+        '#fbfdfb',
+        '#f5faf6',
+        '#f0f7f2',
+        '#edf4ef',
+        '#eaf1ec'
+    ];
+
+    return colors[Math.min(level, colors.length - 1)];
+}
+
+function getLevelBorderColor(level) {
+    const colors = [
+        '#cfded4',
+        '#c5d8cb',
+        '#bbd0c2',
+        '#b2c8ba',
+        '#a9c0b2'
+    ];
+
+    return colors[Math.min(level, colors.length - 1)];
+}
+
+function showError(message) {
+    alert(message);
+    console.error(message);
+}
+
+/* ============================================================
+   2. 复制表达式、分析结果的保存和加载
+============================================================ */
+
+async function copyToClipboard(text, buttonElement) {
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+    }
+
+    const oldText = buttonElement.textContent;
+    const oldClass = buttonElement.className;
+
+    buttonElement.textContent = '已复制';
+    buttonElement.classList.add('copy-success');
+
+    setTimeout(() => {
+        buttonElement.textContent = oldText;
+        buttonElement.className = oldClass;
+    }, 1000);
+}
+
+function saveCurrentAnalysisInputs() {
+    document.querySelectorAll('.analysis-input').forEach(input => {
+        const notationId = input.dataset.notationId;
+        const seq = input.dataset.sequence;
+        const value = input.value.trim();
+
+        if (!notationId || !notationStates[notationId] || !seq) return;
+
+        const state = notationStates[notationId];
+        const key = makeAnalysisKey(notationId, seq);
+
+        if (value) {
+            state.analysisData[key] = value;
+        } else {
+            delete state.analysisData[key];
+        }
+    });
+}
+
+function saveAnalysisResults() {
+    saveCurrentAnalysisInputs();
+
+    let content = '';
+
+    for (const [notationId, state] of Object.entries(notationStates)) {
+        const prefix = `${notationId}||`;
+
+        const entries = Object.entries(state.analysisData)
+            .filter(([key, result]) => key.startsWith(prefix) && result && result.trim());
+
+        if (entries.length === 0) continue;
+
+        content += `[${notationId}]\n`;
+
+        entries.forEach(([key, result]) => {
+            const seq = key.slice(prefix.length);
+            content += `${seq}=${result}\n`;
+        });
+
+        content += `\n`;
+    }
+
+    if (!content.trim()) {
+        alert('没有可保存的分析结果！');
+        return;
+    }
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+
+    a.href = url;
+    a.download = `analysis_results.txt`;
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert('分析结果已保存！');
+}
+
+function loadAnalysisResults(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        const lines = e.target.result.split('\n');
+
+        let currentSection = currentNotationId;
+        let count = 0;
+
+        lines.forEach(rawLine => {
+            const line = rawLine.trim();
+            if (!line) return;
+
+            const sectionMatch = line.match(/^$$([^$$]+)\]$/);
+            if (sectionMatch) {
+                const notationId = sectionMatch[1].trim();
+
+                if (notationStates[notationId]) {
+                    currentSection = notationId;
+                } else {
+                    currentSection = null;
+                }
+
+                return;
+            }
+
+            if (!currentSection) return;
+
+            const eqIndex = line.indexOf('=');
+            if (eqIndex === -1) return;
+
+            const seq = line.slice(0, eqIndex).trim();
+            const result = line.slice(eqIndex + 1).trim();
+
+            if (!seq || !result) return;
+
+            notationStates[currentSection].analysisData[makeAnalysisKey(currentSection, seq)] = result;
+            count++;
+        });
+
+        updateDisplay();
+        alert(`成功加载 ${count} 条分析结果！`);
+    };
+
+    reader.readAsText(file, 'UTF-8');
+    event.target.value = '';
+}
+
+/* ============================================================
+   3. 极限表达式初始化和切换记号
+============================================================ */
+
+function initializeLimitExpression(notationId) {
+    const adapter = notationRegistry[notationId];
+    const state = notationStates[notationId];
+
+    if (!adapter.limit) return;
+    if (state.history.some(r => r.isLimit)) return;
+
+    const seq = adapter.limit.initial();
+    const source = adapter.format(seq);
+
+    const record = {
+        id: ++state.counter,
+        source,
+        parsed: seq,
+        length: seq.length,
+        result: seq,
+        goodLength: seq.length,
+        groups: [],
+        badRootIndex: -1,
+        isRoot: true,
+        isLimit: true,
+        parentId: null,
+        level: 0,
+        times: 0,
+        createdAt: Date.now(),
+        manualAfterId: null
+    };
+
+    state.history.push(record);
+}
+
+function switchNotation(id) {
+    saveCurrentAnalysisInputs();
+
+    currentNotationId = id;
+    const adapter = getAdapter();
+
+    sequenceInput.placeholder = adapter.placeholder || '';
+    sequenceInput.value = '';
+    timesInput.value = adapter.defaultTimes ?? 3;
+
+    initializeLimitExpression(id);
+    cancelInsertAfter(false);
+    updateDisplay();
+}
+
+/* ============================================================
+   4. 插入和展开
+============================================================ */
+
+function insertSequence() {
+    const adapter = getAdapter();
+    const state = getState();
+
+    const input = sequenceInput.value.trim();
+    const times = parseInt(timesInput.value, 10);
+
+    if (!input) {
+        alert('请输入要插入的表达式！');
+        return;
+    }
+
+    if (isNaN(times) || times < 0) {
+        alert('展开次数必须是非负整数！');
+        return;
+    }
+
+    let parsed;
+    try {
+        parsed = adapter.parse(input);
+    } catch (err) {
+        alert(err.message || '无法识别输入');
+        return;
+    }
+
+    const normalized = adapter.format(parsed);
+
+    const exists = state.history.some(r => !r.isLimit && r.source === normalized);
+    if (exists) {
+        alert('该表达式已经存在于展开树中！');
+        return;
+    }
+
+    performExpansion(normalized, times, true, null, state.insertAfterTarget, false);
+
+    sequenceInput.value = '';
+    cancelInsertAfter();
+}
+
+function performExpansion(sourceText, times, isRoot = false, parentId = null, insertAfterId = null, isLimit = false) {
+    const adapter = getAdapter();
+    const state = getState();
+
+    let parsed;
+
+    try {
+        parsed = adapter.parse(sourceText);
+    } catch (err) {
+        showError(err.message || '无法识别输入');
+        return;
+    }
+
+    let expanded;
+
+    try {
+        expanded = adapter.expand(clone(parsed), times);
+    } catch (err) {
+        showError('展开错误：' + err.message);
+        return;
+    }
+
+    if (!expanded || !expanded.result) {
+        showError('该表达式无法展开');
+        return;
+    }
+
+    let level = 0;
+    let realParentId = parentId;
+
+    if (!isRoot && parentId !== null) {
+        const parent = state.history.find(r => r.id === parentId);
+        if (parent) level = parent.level + 1;
+    }
+
+    if (insertAfterId !== null) {
+        const target = state.history.find(r => r.id === insertAfterId);
+        if (target) {
+            level = target.level;
+            realParentId = target.parentId;
+        }
+    }
+
+    const badRootIndex = expanded.badRootIndex ?? adapter.getBadRootIndex?.(parsed) ?? -1;
+
+    const record = {
+        id: ++state.counter,
+        source: adapter.format(parsed),
+        parsed,
+        length: parsed.length,
+        result: expanded.result,
+        goodLength: expanded.goodLength ?? Math.max(parsed.length - 1, 0),
+        groups: expanded.groups ?? [],
+        badRootIndex,
+        isRoot,
+        isLimit,
+        parentId: realParentId,
+        level,
+        times,
+        createdAt: Date.now(),
+        manualAfterId: insertAfterId
+    };
+
+    state.history.push(record);
+    updateDisplay();
+
+    if (autoCenterEnabled && !isRoot) {
+        scrollToRecord(record.id);
+    }
+}
+
+function continueExpansion(recordId) {
+    const adapter = getAdapter();
+    const state = getState();
+    const record = state.history.find(r => r.id === recordId);
+    if (!record) return;
+
+    if (record.isLimit) {
+        if (!adapter.limit || !adapter.limit.extend) return;
+
+        record.parsed = adapter.limit.extend(clone(record.parsed));
+        record.result = record.parsed;
+        record.source = adapter.format(record.parsed);
+        record.length = record.parsed.length;
+        record.goodLength = record.parsed.length;
+        record.groups = [];
+        record.badRootIndex = -1;
+
+        updateDisplay();
+        return;
+    }
+
+    const newTimes = record.times + 1;
+
+    let expanded;
+    try {
+        expanded = adapter.expand(clone(record.parsed), newTimes);
+    } catch (err) {
+        alert('继续展开失败：' + err.message);
+        return;
+    }
+
+    record.result = expanded.result;
+    record.goodLength = expanded.goodLength ?? Math.max(record.parsed.length - 1, 0);
+    record.groups = expanded.groups ?? [];
+    record.badRootIndex = expanded.badRootIndex ?? adapter.getBadRootIndex?.(record.parsed) ?? -1;
+    record.times = newTimes;
+
+    updateDisplay();
+}
+
+/* ============================================================
+   5. 删除树、插入位置
+============================================================ */
+
+function deleteExpansion(recordId) {
+    const state = getState();
+    const record = state.history.find(r => r.id === recordId);
+
+    if (!record) return;
+
+    if (record.isLimit) {
+        alert('极限表达式不能删除！');
+        return;
+    }
+
+    if (!confirm('确定要删除这个展开树及其所有子级吗？')) return;
+
+    const ids = [];
+
+    function collect(id) {
+        ids.push(id);
+        state.history
+            .filter(r => r.parentId === id)
+            .forEach(child => collect(child.id));
+    }
+
+    collect(recordId);
+    state.history = state.history.filter(r => !ids.includes(r.id));
+
+    if (state.insertAfterTarget && ids.includes(state.insertAfterTarget)) {
+        state.insertAfterTarget = null;
+    }
+
+    updateDisplay();
+}
+
+function setInsertAfter(recordId) {
+    const state = getState();
+
+    if (state.insertAfterTarget === recordId) {
+        cancelInsertAfter();
+        return;
+    }
+
+    state.insertAfterTarget = recordId;
+
+    const insertBtn = document.getElementById('insertBtn');
+    insertBtn.textContent = '插入到选中位置之后';
+
+    insertBtn.removeAttribute('style');
+
+    insertBtn.classList.add('insert-after-active');
+
+    updateDisplay();
+}
+
+function cancelInsertAfter(refresh = true) {
+    const state = getState();
+    if (!state) return;
+
+    state.insertAfterTarget = null;
+
+    const insertBtn = document.getElementById('insertBtn');
+    insertBtn.textContent = '插入到末尾';
+
+    insertBtn.removeAttribute('style');
+
+    insertBtn.classList.remove('insert-after-active');
+
+    if (refresh) updateDisplay();
+}
+
+/* ============================================================
+   6. 树排序
+============================================================ */
+
+function compareRecords(a, b) {
+    const adapter = getAdapter();
+
+    if (!!a.isLimit !== !!b.isLimit) {
+        return a.isLimit ? -1 : 1;
+    }
+
+    if (a.length !== b.length) {
+        return b.length - a.length;
+    }
+
+    const cmp = adapter.compareSeq
+        ? adapter.compareSeq(a.parsed, b.parsed)
+        : a.source.localeCompare(b.source, 'zh-CN', { numeric: true });
+
+    return adapter.lexDesc ? -cmp : cmp;
+}
+
+function buildTreeOrder() {
+    const state = getState();
+    const result = [];
+    const handled = new Set();
+
+    function addNodeAndChildren(id) {
+        if (handled.has(id)) return;
+
+        const node = state.history.find(r => r.id === id);
+        if (!node) return;
+
+        handled.add(id);
+        result.push(node);
+
+        const children = state.history
+            .filter(r => r.parentId === id)
+            .sort(compareRecords);
+
+        children.forEach(child => addNodeAndChildren(child.id));
+    }
+
+    const roots = state.history
+        .filter(r => r.parentId === null)
+        .sort(compareRecords);
+
+    roots.forEach(root => addNodeAndChildren(root.id));
+
+    const withManual = result.slice();
+
+    state.history
+        .filter(r => r.manualAfterId !== null)
+        .forEach(r => {
+            const currentIndex = withManual.findIndex(x => x.id === r.id);
+            const targetIndex = withManual.findIndex(x => x.id === r.manualAfterId);
+
+            if (currentIndex >= 0 && targetIndex >= 0 && currentIndex !== targetIndex + 1) {
+                const [item] = withManual.splice(currentIndex, 1);
+                const newTargetIndex = withManual.findIndex(x => x.id === r.manualAfterId);
+                withManual.splice(newTargetIndex + 1, 0, item);
+            }
+        });
+
+    return withManual;
+}
+
+/* ============================================================
+   7. 坏根高亮、悬停高亮
+============================================================ */
+
+function clearHoverHighlight() {
+    document.querySelectorAll('.hover-target-highlight').forEach(el => {
+        el.classList.remove('hover-target-highlight');
+    });
+
+    hideHoverDiagram();
+}
+
+function handleTokenHover(recordId, index, event) {
+    clearHoverHighlight();
+
+    const adapter = getAdapter();
+    const state = getState();
+    const record = state.history.find(r => r.id === recordId);
+
+    if (!record) return;
+
+    let truncated;
+
+    // 极限表达式悬停时，也按点击选择逻辑来生成对应图案
+    if (record.isLimit && adapter.limit?.select) {
+        try {
+            truncated = adapter.limit.select(clone(record.result), index);
+        } catch {
+            truncated = record.result.slice(0, index + 1);
+        }
+    } else {
+        truncated = record.result.slice(0, index + 1);
+    }
+
+    if (!truncated || truncated.length === 0) return;
+
+    // 鼠标右下方显示“截断到当前项”的图案
+    if (event) {
+        showHoverDiagramForSequence(truncated, event);
+    }
+
+    // 极限表达式保留悬停图示，但不做坏根高亮
+    if (record.isLimit) return;
+
+    const badIndex = adapter.getBadRootIndex?.(truncated);
+
+    if (badIndex === undefined || badIndex === null || badIndex < 0) return;
+
+    let targetIndices = [badIndex];
+
+    // 允许 notation 自定义“悬停高亮哪些 token”
+    if (adapter.getHoverTargetIndices) {
+        try {
+            const res = adapter.getHoverTargetIndices(truncated, badIndex, index);
+            if (Array.isArray(res) && res.length > 0) {
+                targetIndices = res;
+            }
+        } catch {}
+    }
+
+    targetIndices.forEach(i => {
+        const target = document.querySelector(
+            `[data-expansion-id="${recordId}"] [data-token-index="${i}"]`
+        );
+
+        if (!target) return;
+
+        const compactGroup = target.closest('.compact-token-group');
+
+        if (compactGroup) {
+            compactGroup.classList.add('hover-target-highlight');
+        } else {
+            target.classList.add('hover-target-highlight');
+        }
+    });
+}
+
+/* ============================================================
+   8. 显示
+============================================================ */
+
+function isBadRootToken(record, index) {
+    const adapter = getAdapter();
+
+    if (adapter.isBadRootToken) {
+        try {
+            return adapter.isBadRootToken(record, index);
+        } catch {
+            return false;
+        }
+    }
+
+    return index === record.badRootIndex;
+}
+
+const countSequenceCache = new Map();
+
+const COUNT_MAX_STEPS = 1000;
+
+function getCountCacheKey(seq, successorElement) {
+    const adapter = getAdapter();
+
+    let formatted;
+    try {
+        formatted = adapter.format(seq);
+    } catch {
+        formatted = JSON.stringify(seq);
+    }
+
+    return currentNotationId + '|' + successorElement + '|' + formatted;
+}
+
+function isCountSuccessor(seq) {
+    const adapter = getAdapter();
+
+    if (!seq || seq.length === 0) return true;
+
+    // 如果 notation 自己定义了后继判断，优先用它
+    if (adapter.isSuccessor) {
+        try {
+            return adapter.isSuccessor(seq);
+        } catch {
+            return false;
+        }
+    }
+
+    // 通用后继判断：
+    try {
+        const expanded = adapter.expand(clone(seq), 1);
+
+        if (!expanded || !expanded.result) return true;
+
+        if (expanded.result.length < seq.length) {
+            return true;
+        }
+
+        return false;
+    } catch {
+        return true;
+    }
+}
+
+function defaultCountStep(seq) {
+    const adapter = getAdapter();
+
+    if (!seq || seq.length === 0) return seq;
+
+    // 如果 notation 自己定义了计数步进，优先用它
+    if (adapter.countStep) {
+        return adapter.countStep(clone(seq));
+    }
+
+    const expanded = adapter.expand(clone(seq), 1);
+
+    if (!expanded || !expanded.result) {
+        throw new Error('无法计数展开');
+    }
+
+    if (
+        expanded.groups &&
+        expanded.groups.length > 0 &&
+        expanded.groups[0] &&
+        expanded.groups[0].length > 0
+    ) {
+        const good = seq.slice(0, -1);
+        return good.concat([clone(expanded.groups[0][0])]);
+    }
+
+    return expanded.result;
+}
+
+function computeCountValue(seq, successorElement) {
+    const cacheKey = getCountCacheKey(seq, successorElement);
+
+    if (countSequenceCache.has(cacheKey)) {
+        return countSequenceCache.get(cacheKey);
+    }
+
+    let current = clone(seq);
+    let count = 0;
+
+    while (!isCountSuccessor(current)) {
+        if (count > COUNT_MAX_STEPS) {
+            countSequenceCache.set(cacheKey, '?');
+            return '?';
+        }
+
+        current = defaultCountStep(current);
+        count++;
+    }
+
+    const value = successorElement + count;
+    countSequenceCache.set(cacheKey, value);
+    return value;
+}
+
+function getCountSequenceTargetsFromSeq(seq) {
+    const adapter = getAdapter();
+
+    if (!seq || seq.length === 0) return [];
+
+    if (adapter.compactTokens && adapter.getTokenGroupKey) {
+        const targets = [];
+
+        let currentKey = null;
+        let lastIndexOfGroup = -1;
+
+        for (let i = 0; i < seq.length; i++) {
+            const key = adapter.getTokenGroupKey(seq[i], i, seq);
+
+            if (currentKey === null) {
+                currentKey = key;
+                lastIndexOfGroup = i;
+                continue;
+            }
+
+            if (key !== currentKey) {
+                targets.push(seq.slice(0, lastIndexOfGroup + 1));
+                currentKey = key;
+            }
+
+            lastIndexOfGroup = i;
+        }
+
+        if (lastIndexOfGroup >= 0) {
+            targets.push(seq.slice(0, lastIndexOfGroup + 1));
+        }
+
+        return targets;
+    }
+
+    return seq.map((_, index) => seq.slice(0, index + 1));
+}
+
+function getCountSequenceTargets(record, useResult = false) {
+    const adapter = getAdapter();
+
+    if (!record) return [];
+
+    if (adapter.getCountSequenceTargets) {
+        try {
+            const custom = adapter.getCountSequenceTargets(record, useResult);
+            if (Array.isArray(custom)) return custom;
+        } catch {}
+    }
+
+    const seq = useResult ? record.result : record.parsed;
+
+    return getCountSequenceTargetsFromSeq(seq);
+}
+
+function createCountSequenceLine(record, useResult = false) {
+    if (!showCountSequence) return '';
+    if (record.isLimit) return '';
+
+    if (useResult && !showResultCountSequence) return '';
+
+    const targets = getCountSequenceTargets(record, useResult);
+
+    if (!targets || targets.length === 0) return '';
+
+    const values = targets.map(seq => {
+        try {
+            return computeCountValue(seq, countSuccessorElement);
+        } catch {
+            return '?';
+        }
+    });
+
+    const label = useResult ? '计数序列:' : '计数序列:';
+
+    return `
+        <div class="analysis-line">
+            <span class="analysis-line-label">${label}</span>
+            ${escapeHTML(values.join(','))}
+        </div>
+    `;
+}
+
+function getTokenColorClass(record, index) {    
+    if (isBadRootToken(record, index)) {
+        return 'clickable-number-red';
+    }
+
+
+    if (
+        record.badRootIndex !== undefined &&
+        record.badRootIndex !== null &&
+        record.badRootIndex >= 0 &&
+        index < record.badRootIndex
+    ) {
+        return '';
+    }
+
+    if (index < record.goodLength) {
+        return 'clickable-number-yellow';
+    }
+
+    const pos = index - record.goodLength;
+    let acc = 0;
+
+    for (let i = 0; i < record.groups.length; i++) {
+        const len = record.groups[i].length;
+        if (pos < acc + len) {
+            return i % 2 === 0 ? 'clickable-number-blue' : 'clickable-number-green';
+        }
+        acc += len;
+    }
+
+    return 'clickable-number-blue';
+}
+
+function createStaticSequence(seq, badRootIndex) {
+    const adapter = getAdapter();
+    const parts = [];
+
+    const fakeRecord = {
+        result: seq,
+        badRootIndex
+    };
+
+    seq.forEach((token, index) => {
+        const text = adapter.formatToken(token);
+
+        const cls = isBadRootToken(fakeRecord, index)
+            ? 'static-number static-number-red'
+            : 'static-number';
+
+        parts.push(`<span class="${cls}">${escapeHTML(text)}</span>`);
+
+        if (index < seq.length - 1) {
+            const sep = adapter.separator
+                ? adapter.separator(token, seq[index + 1], index, seq)
+                : ',';
+
+            if (sep !== '') {
+                parts.push(`<span class="static-comma">${escapeHTML(sep)}</span>`);
+            }
+        }
+    });
+
+    return parts.join('');
+}
+
+function createClickableSequence(record, options = {}) {
+    const adapter = getAdapter();
+
+    if (adapter.compactTokens) {
+        let s = `<div class="sequence-container compact-sequence">`;
+
+        const labelHTML = label => {
+            return showColumnLabels
+                ? `<span class="column-label">${label}</span>`
+                : '';
+        };
+
+        const seq = record.result;
+        let currentKey = null;
+        let groupHtml = '';
+
+        function flushGroup(key) {
+            if (key === null) return;
+
+            const displayLabel = typeof key === 'number' ? key + 1 : '&nbsp;';
+
+            s += `<div class="sequence-column">`
+                + `<div class="compact-token-group">${groupHtml}</div>`
+                + labelHTML(displayLabel)
+                + `</div>`;
+
+            groupHtml = '';
+        }
+
+        seq.forEach((token, index) => {
+            const key = adapter.getTokenGroupKey
+                ? adapter.getTokenGroupKey(token, index, seq)
+                : index;
+
+            if (currentKey === null) {
+                currentKey = key;
+            } else if (key !== currentKey) {
+                flushGroup(currentKey);
+                currentKey = key;
+            }
+
+            const text = adapter.formatToken(token);
+            const colorClass = getTokenColorClass(record, index);
+
+            groupHtml += `<span class="clickable-number ${colorClass}" `
+                + `data-action="token" `
+                + `data-expansion-id="${record.id}" `
+                + `data-token-index="${index}">`
+                + `${escapeHTML(text)}`
+                + `</span>`;
+
+            if (index < seq.length - 1) {
+                const next = seq[index + 1];
+                const sep = adapter.separator
+                    ? adapter.separator(token, next, index, seq)
+                    : ',';
+
+                if (sep !== '') {
+                    groupHtml += `<span class="comma">${escapeHTML(sep)}</span>`;
+                }
+            }
+        });
+
+        if (currentKey !== null) {
+            flushGroup(currentKey);
+        }
+
+        if (options.ellipsis) {
+            s += `<div class="sequence-column">`
+                + `<div class="compact-token-group"><span class="static-number">...</span></div>`
+                + labelHTML('&nbsp;')
+                + `</div>`;
+        }
+
+        if (options.plus) {
+            s += `<div class="sequence-column">`
+                + `<div class="compact-token-group">`
+                + `<button class="expand-more-btn" `
+                + `data-action="continue" `
+                + `data-expansion-id="${record.id}">+</button>`
+                + `</div>`
+                + labelHTML('&nbsp;')
+                + `</div>`;
+        }
+
+        s += `</div>`;
+        return s;
+    }
+
+    let s = `<div class="sequence-container">`;
+
+    const labelHTML = label => {
+        return showColumnLabels
+            ? `<span class="column-label">${label}</span>`
+            : '';
+    };
+
+    record.result.forEach((token, index) => {
+        const text = adapter.formatToken(token);
+        const colorClass = getTokenColorClass(record, index);
+
+        s += `<div class="sequence-column">`
+            + `<span class="clickable-number ${colorClass}" `
+            + `data-action="token" `
+            + `data-expansion-id="${record.id}" `
+            + `data-token-index="${index}">`
+            + `${escapeHTML(text)}`
+            + `</span>`
+            + labelHTML(index + 1)
+            + `</div>`;
+
+        if (index < record.result.length - 1) {
+            const sep = adapter.separator
+                ? adapter.separator(token, record.result[index + 1], index, record.result)
+                : ',';
+
+            if (sep !== '') {
+                s += `<div class="sequence-column">`
+                    + `<span class="comma">${escapeHTML(sep)}</span>`
+                    + labelHTML('&nbsp;')
+                    + `</div>`;
+            }
+        }
+    });
+
+    if (options.ellipsis) {
+        s += `<div class="sequence-column">`
+            + `<span class="static-number">...</span>`
+            + labelHTML('&nbsp;')
+            + `</div>`;
+    }
+
+    if (options.plus) {
+        s += `<div class="sequence-column">`
+            + `<button class="expand-more-btn" `
+            + `data-action="continue" `
+            + `data-expansion-id="${record.id}">+</button>`
+            + labelHTML('&nbsp;')
+            + `</div>`;
+    }
+
+    s += `</div>`;
+    return s;
+}
+
+function updateDisplay() {
+    saveCurrentAnalysisInputs();
+
+    const state = getState();
+    if (!state) return;
+
+    const ordered = buildTreeOrder();
+    let html = '';
+
+    ordered.forEach(record => {
+        const mobile = isMobile();
+        const indent = indentEnabled ? (mobile ? record.level * 12 : record.level * 20) : 0;
+
+        const bg = record.isLimit ? '#e8f5e9' : getLevelColor(record.level);
+        const border = record.isLimit ? '#4caf50' : getLevelBorderColor(record.level);
+        const outline = state.insertAfterTarget === record.id
+            ? 'outline:2px solid #e0bd75; outline-offset:1px; box-shadow:0 0 0 4px rgba(224,189,117,0.16);'
+            : '';
+
+        html += `
+            <div class="expansion-item ${record.isLimit ? 'limit-expression' : ''}"
+                 style="margin-left:${indent}px;background-color:${bg};border-color:${border};${outline}"
+                 data-expansion-id="${record.id}">
+                <div class="expansion-title">
+        `;
+
+        if (record.isLimit) {
+            html += `<span>极限表达式:</span>`;
+            html += createClickableSequence(record, { plus: true, ellipsis: true });
+        } else if (record.isRoot) {
+            html += `<span>原表达式: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
+        } else {
+            html += `<span>截取表达式: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
+        }
+
+        html += `
+                    <button class="small-btn copy-btn" data-action="copy" data-expansion-id="${record.id}">复制</button>
+        `;
+
+        if (!record.isLimit) {
+            html += `
+                    <button class="small-btn delete-btn" data-action="delete" data-expansion-id="${record.id}">删除</button>
+                    <button class="small-btn insert-after-btn" data-action="insert-after" data-expansion-id="${record.id}">在此之后插入</button>
+            `;
+        }
+
+        html += `
+                    <span style="margin-left:10px;color:#666;font-size:12px;">(层级${record.level})</span>
+                </div>
+        `;
+
+        if (!record.isLimit) {
+            html += createCountSequenceLine(record);
+
+            html += `
+                <div class="expansion-result">
+                    展开结果: ${createClickableSequence(record, { plus: true })}
+                </div>
+            `;
+            
+            html += createCountSequenceLine(record, true);
+        }
+
+        if (showAnalysis) {
+            const value = getAnalysisValue(currentNotationId, record.source);
+            html += `
+                <div class="analysis-line">
+                    <span class="analysis-line-label">分析结果:</span>
+                    <input type="text"
+                        class="analysis-input"
+                        data-notation-id="${escapeHTML(currentNotationId)}"
+                        data-sequence="${escapeHTML(record.source)}"
+                        value="${escapeHTML(value)}"
+                        placeholder="在此输入...">
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+    });
+
+    outputDiv.innerHTML = html.replace(/>\s+</g, '><').trim();
+}
+
+function scrollToRecord(id) {
+    if (!autoCenterEnabled) return;
+
+    setTimeout(() => {
+        const el = document.querySelector(`[data-expansion-id="${id}"]`);
+        if (el) {
+            el.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'end'
+            });
+        }
+    }, 100);
+}
+
+//图示
+function ensureHoverDiagramTooltip() {
+    if (hoverDiagramTooltip) return hoverDiagramTooltip;
+
+    hoverDiagramTooltip = document.createElement('div');
+    hoverDiagramTooltip.className = 'hover-diagram-tooltip';
+
+    const canvas = document.createElement('canvas');
+    hoverDiagramTooltip.appendChild(canvas);
+
+    document.body.appendChild(hoverDiagramTooltip);
+
+    return hoverDiagramTooltip;
+}
+
+function hideHoverDiagram() {
+    if (hoverDiagramTooltip) {
+        hoverDiagramTooltip.style.display = 'none';
+    }
+}
+
+function moveHoverDiagram(event) {
+    if (!hoverDiagramTooltip) return;
+    if (hoverDiagramTooltip.style.display === 'none') return;
+
+    const offsetX = 18;
+    const offsetY = 18;
+
+    let x = event.clientX + offsetX;
+    let y = event.clientY + offsetY;
+
+    const rect = hoverDiagramTooltip.getBoundingClientRect();
+
+    if (x + rect.width > window.innerWidth - 8) {
+        x = event.clientX - rect.width - offsetX;
+    }
+
+    if (y + rect.height > window.innerHeight - 8) {
+        y = event.clientY - rect.height - offsetY;
+    }
+
+    hoverDiagramTooltip.style.left = x + 'px';
+    hoverDiagramTooltip.style.top = y + 'px';
+}
+
+function renderDiagramActionsToCanvasCropped(canvas, diagram, maxWidth = 300, maxHeight = 240) {
+    if (!canvas || !diagram || !diagram.actions) return;
+
+    if (diagram.noLimitX) {
+        renderDiagramActionsToCanvasNoLimitX(canvas, diagram, maxHeight);
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    function includePoint(x, y) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+    }
+
+    for (const action of diagram.actions) {
+        if (action.type === 'circle') {
+            includePoint(action.center.x - action.radius, action.center.y - action.radius);
+            includePoint(action.center.x + action.radius, action.center.y + action.radius);
+        } else if (action.type === 'line') {
+            includePoint(action.start.x, action.start.y);
+            includePoint(action.end.x, action.end.y);
+        } else if (action.type === 'text') {
+            includePoint(action.pos.x - 80, action.pos.y - 120);
+            includePoint(action.pos.x + 160, action.pos.y + 40);
+        }
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
+        canvas.width = 1;
+        canvas.height = 1;
+        return;
+    }
+
+    const padding = 40;
+
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    const rawW = Math.max(1, maxX - minX);
+    const rawH = Math.max(1, maxY - minY);
+
+    let scale;
+
+    if (diagram.noLimitX) {
+        // 0-Y 这类横向图：不按宽度压缩，只按高度压缩
+        scale = Math.min(
+            maxHeight / rawH,
+            1
+        );
+    } else {
+        scale = Math.min(
+            maxWidth / rawW,
+            maxHeight / rawH,
+            1
+        );
+    }
+
+    canvas.width = Math.max(1, Math.floor(rawW * scale));
+    canvas.height = Math.max(1, Math.floor(rawH * scale));
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    function tx(x) {
+        return (x - minX) * scale;
+    }
+
+    function ty(y) {
+        return (y - minY) * scale;
+    }
+
+    function drawCircle(a) {
+        ctx.beginPath();
+        ctx.arc(
+            tx(a.center.x),
+            ty(a.center.y),
+            a.radius * scale,
+            0,
+            Math.PI * 2
+        );
+
+        if (a.fill) ctx.fill();
+        ctx.stroke();
+    }
+
+    function drawLine(a) {
+        ctx.beginPath();
+        ctx.moveTo(tx(a.start.x), ty(a.start.y));
+        ctx.lineTo(tx(a.end.x), ty(a.end.y));
+        ctx.stroke();
+    }
+
+    function drawText(a) {
+        let x = tx(a.pos.x);
+
+        if (a.h_center) {
+            x -= ctx.measureText(a.value).width / 2;
+        }
+
+        ctx.fillText(a.value, x, ty(a.pos.y));
+    }
+
+    for (const action of diagram.actions) {
+        switch (action.type) {
+            case 'circle':
+                drawCircle(action);
+                break;
+
+            case 'line':
+                drawLine(action);
+                break;
+
+            case 'font':
+                ctx.font = `${action.size * scale}px ${action.font}`;
+                break;
+
+            case 'lineWidth':
+                ctx.lineWidth = action.value * scale;
+                break;
+
+            case 'fillStyle':
+                ctx.fillStyle = action.value;
+                break;
+
+            case 'strokeStyle':
+                ctx.strokeStyle = action.value;
+                break;
+
+            case 'text':
+                drawText(action);
+                break;
+
+            case 'fillRect':
+            case 'strokeRect':
+            case 'clearRect':
+                break;
+        }
+    }
+}
+
+function showHoverDiagramForSequence(seq, event) {
+    const adapter = getAdapter();
+
+    if (!showDiagrams) return;
+    if (!adapter.drawDiagram) return;
+    if (!seq || seq.length === 0) return;
+
+    let diagram;
+
+    try {
+        diagram = adapter.drawDiagram(seq);
+    } catch {
+        hideHoverDiagram();
+        return;
+    }
+
+    if (!diagram) {
+        hideHoverDiagram();
+        return;
+    }
+
+    const tooltip = ensureHoverDiagramTooltip();
+    const canvas = tooltip.querySelector('canvas');
+
+    renderDiagramActionsToCanvasCropped(canvas, diagram, 300, 240);
+
+    tooltip.style.display = 'block';
+    moveHoverDiagram(event);
+}
+
+function renderDiagramActionsToCanvasNoLimitX(canvas, diagram, maxHeight = 360) {
+    if (!canvas || !diagram || !diagram.actions) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rawW = Math.max(1, diagram.width || 1);
+    const rawH = Math.max(1, diagram.height || 1);
+
+    const scale = Math.min(maxHeight / rawH, 1);
+
+    canvas.width = Math.ceil(rawW * scale);
+    canvas.height = Math.ceil(rawH * scale);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    function sx(x) {
+        return x * scale;
+    }
+
+    function drawLine(a) {
+        ctx.beginPath();
+        ctx.moveTo(sx(a.start.x), sx(a.start.y));
+        ctx.lineTo(sx(a.end.x), sx(a.end.y));
+        ctx.stroke();
+    }
+
+    function drawText(a) {
+        let x = sx(a.pos.x);
+
+        if (a.h_center) {
+            x -= ctx.measureText(String(a.value)).width / 2;
+        }
+
+        ctx.fillText(String(a.value), x, sx(a.pos.y));
+    }
+
+    function drawCircle(a) {
+        ctx.beginPath();
+        ctx.arc(
+            sx(a.center.x),
+            sx(a.center.y),
+            sx(a.radius),
+            0,
+            Math.PI * 2
+        );
+
+        if (a.fill) ctx.fill();
+
+        ctx.stroke();
+    }
+
+    for (const action of diagram.actions) {
+        switch (action.type) {
+            case 'lineWidth':
+                ctx.lineWidth = Math.max(0.8, action.value * scale);
+                break;
+
+            case 'strokeStyle':
+                ctx.strokeStyle = action.value;
+                break;
+
+            case 'fillStyle':
+                ctx.fillStyle = action.value;
+                break;
+
+            case 'font':
+                ctx.font = `${action.size * scale}px ${action.font}`;
+                break;
+
+            case 'fillRect':
+                ctx.fillRect(
+                    sx(action.value.x),
+                    sx(action.value.y),
+                    sx(action.value.w),
+                    sx(action.value.h)
+                );
+                break;
+
+            case 'strokeRect':
+                ctx.strokeRect(
+                    sx(action.value.x),
+                    sx(action.value.y),
+                    sx(action.value.w),
+                    sx(action.value.h)
+                );
+                break;
+
+            case 'clearRect':
+                ctx.clearRect(
+                    sx(action.value.x),
+                    sx(action.value.y),
+                    sx(action.value.w),
+                    sx(action.value.h)
+                );
+                break;
+
+            case 'line':
+                drawLine(action);
+                break;
+
+            case 'text':
+                drawText(action);
+                break;
+
+            case 'circle':
+                drawCircle(action);
+                break;
+        }
+    }
+}
+
+/* ============================================================
+   9. 点击事件处理
+============================================================ */
+
+outputDiv.addEventListener('click', event => {
+    const target = event.target;
+    const action = target.dataset.action;
+    const id = Number(target.dataset.expansionId);
+
+    if (!action) return;
+
+    const state = getState();
+    const adapter = getAdapter();
+    const record = state.history.find(r => r.id === id);
+
+    if (!record) return;
+
+    if (action === 'copy') {
+        copyToClipboard(record.source, target);
+        return;
+    }
+
+    if (action === 'delete') {
+        deleteExpansion(id);
+        return;
+    }
+
+    if (action === 'insert-after') {
+        setInsertAfter(id);
+        return;
+    }
+
+    if (action === 'continue') {
+        continueExpansion(id);
+        return;
+    }
+
+    if (action === 'token') {
+        const index = Number(target.dataset.tokenIndex);
+        let selectedSeq;
+
+        if (record.isLimit && adapter.limit?.select) {
+            selectedSeq = adapter.limit.select(clone(record.result), index);
+        } else if (adapter.selectToken) {
+            selectedSeq = adapter.selectToken(record, index);
+        } else {
+            selectedSeq = record.result.slice(0, index + 1);
+        }
+
+        if (!selectedSeq || selectedSeq.length === 0) return;
+
+        const source = adapter.format(selectedSeq);
+        const times = parseInt(timesInput.value, 10) || 0;
+
+        const existedRecord = state.history.find(r => !r.isLimit && r.source === source);
+        if (existedRecord) {
+            if (autoCenterEnabled) {
+                scrollToRecord(existedRecord.id);
+            }
+            return;
+        }
+
+        performExpansion(source, times, false, id);
+    }
+});
+
+outputDiv.addEventListener('mouseover', event => {
+    const target = event.target.closest('[data-action="token"]');
+    if (!target) return;
+
+    const id = Number(target.dataset.expansionId);
+    const index = Number(target.dataset.tokenIndex);
+
+    if (!Number.isFinite(id) || !Number.isFinite(index)) return;
+
+    handleTokenHover(id, index, event);
+});
+
+outputDiv.addEventListener('mousemove', event => {
+    const target = event.target.closest('[data-action="token"]');
+    if (!target) return;
+
+    moveHoverDiagram(event);
+});
+
+outputDiv.addEventListener('mouseout', event => {
+    const target = event.target.closest('[data-action="token"]');
+    if (!target) return;
+
+    const related = event.relatedTarget;
+
+    // 如果只是 token 内部元素之间移动，不清除
+    if (related && target.contains(related)) return;
+
+    clearHoverHighlight();
+});
+
+/* ============================================================
+   10. 顶部按钮
+============================================================ */
+
+document.getElementById('countSequenceCheckbox').addEventListener('change', event => {
+    showCountSequence = event.target.checked;
+    countSequenceCache.clear();
+
+    const options = document.getElementById('countSuccessorOptions');
+    if (options) {
+        options.style.display = showCountSequence ? 'inline-flex' : 'none';
+    }
+
+    const resultOption = document.getElementById('resultCountSequenceOption');
+    if (resultOption) {
+        resultOption.style.display = showCountSequence ? 'inline-flex' : 'none';
+    }
+
+    updateDisplay();
+});
+
+document.getElementById('resultCountSequenceCheckbox').addEventListener('change', event => {
+    showResultCountSequence = event.target.checked;
+    countSequenceCache.clear();
+    updateDisplay();
+});
+
+document.querySelectorAll('input[name="countSuccessorElement"]').forEach(radio => {
+    radio.addEventListener('change', event => {
+        countSuccessorElement = Number(event.target.value);
+        updateDisplay();
+    });
+});
+
+document.getElementById('insertBtn').addEventListener('click', insertSequence);
+
+document.getElementById('indentCheckbox').addEventListener('change', event => {
+    indentEnabled = event.target.checked;
+    updateDisplay();
+});
+
+document.getElementById('centerCheckbox').addEventListener('change', event => {
+    autoCenterEnabled = event.target.checked;
+});
+
+document.getElementById('analysisCheckbox').addEventListener('change', event => {
+    showAnalysis = event.target.checked;
+    updateDisplay();
+});
+
+document.getElementById('columnLabelsCheckbox').addEventListener('change', event => {
+    showColumnLabels = event.target.checked;
+    updateDisplay();
+});
+
+document.getElementById('saveAnalysisBtn').addEventListener('click', saveAnalysisResults);
+
+document.getElementById('loadAnalysisBtn').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', loadAnalysisResults);
+
+document.getElementById('reloadBtn').addEventListener('click', () => {
+    const state = getState();
+
+    if (state.history.length > 1 && !confirm('确定要清空当前记号的所有展开树吗？')) {
+        return;
+    }
+
+    state.history = [];
+    state.counter = 0;
+    state.insertAfterTarget = null;
+
+    sequenceInput.value = '';
+    timesInput.value = getAdapter().defaultTimes ?? 3;
+
+    initializeLimitExpression(currentNotationId);
+    updateDisplay();
+
+    outputDiv.scrollLeft = 0;
+    outputDiv.scrollTop = 0;
+    sequenceInput.focus();
+});
+
+notationSelect.addEventListener('change', () => {
+    switchNotation(notationSelect.value);
+});
+
+/* ============================================================
+   新记号模板 / Notation Adapter Template
+
+   说明：
+   每个记号通过 registerNotation(adapter) 注册。
+   adapter 是一个对象，框架会通过这些钩子完成：
+
+   1. 输入解析
+   2. 标准显示
+   3. token 显示
+   4. 点击截取 / 点击选择
+   5. 展开
+   6. 坏根标记
+   7. 悬停坏根高亮
+   8. 极限表达式
+   9. 计数序列
+   10. 图示悬浮显示
+   11. compactTokens 矩阵式显示
+
+   必需字段：
+     id
+     name
+     parse
+     format
+     formatToken
+     expand
+
+   常用可选字段：
+     placeholder
+     defaultTimes
+     lexDesc
+     compactTokens
+     separator
+     getTokenGroupKey
+     compareSeq
+     getBadRootIndex
+     isBadRootToken
+     getHoverTargetIndices
+     selectToken
+     isSuccessor
+     countStep
+     getCountSequenceTargets
+     drawDiagram
+     limit
+============================================================ */
+
+/*
+registerNotation({
+    // ========================================================
+    // 1. 基本信息
+    // ========================================================
+
+    // 记号系统唯一 id。
+    // 建议只用英文、数字、下划线，不要和已有 id 重复。
+    //
+    // 例：
+    // id: 'PPS'
+    // id: 'UPS'
+    // id: 'WSM'
+    // id: 'DSM'
+    // id: 'DEN3'
+    // id: '0Y'
+    id: 'newnotation',
+
+    // 下拉菜单里显示的名字。
+    name: '新记号',
+
+    // 输入框 placeholder。
+    placeholder: '例如：...',
+
+    // 默认展开次数。
+    defaultTimes: 3,
+
+    // 排序方向。
+    //
+    // true 或不写：
+    //   长度长的在前；
+    //   长度相同时，字典序大的在前。
+    //
+    // false：
+    //   如果某些记号需要反向字典序，可以设为 false。
+    lexDesc: true,
+
+    // 是否启用紧凑 token 显示。
+    //
+    // 普通序列，如：
+    //   PPS: 0,1,2,3
+    //   UPS: 0,1*,2*
+    //
+    // 一般：
+    //   compactTokens: false
+    //
+    // 矩阵 / 括号列记号，如：
+    //   WSM: (0)(1,1)
+    //   DSM: (0)(1)(2,1)
+    //
+    // 一般：
+    //   compactTokens: true
+    //
+    // compactTokens 开启后，框架会按 getTokenGroupKey 把 token 组成一组显示。
+    compactTokens: false,
+
+
+    // ========================================================
+    // 2. parse：输入字符串 -> 内部序列
+    // ========================================================
+
+    /*
+       parse(input) 必须返回内部序列。
+
+       普通数字序列例：
+         输入： "0,1,2,3"
+         输出： [0,1,2,3]
+
+       UPS 类例：
+         输入： "0,1*,2*"
+         输出： [[0,false],[1,true],[2,true]]
+
+       矩阵类例：
+         输入： "(0)(1,1)"
+         输出： cell 序列：
+         [
+             { v:0, col:0, row:0, colHeight:1 },
+             { v:1, col:1, row:0, colHeight:2 },
+             { v:1, col:1, row:1, colHeight:2 }
+         ]
+
+       DEN3 类例：
+         输入： "(1,0)1(2,1,0)1"
+         输出：
+         [
+             [1,[1],[0]],
+             [1,[2],[1],[0]]
+         ]
+
+       格式错误时：
+         throw new Error('错误提示');
+    parse(input) {
+        throw new Error('尚未实现 parse');
+    },
+
+
+    // ========================================================
+    // 3. format：内部序列 -> 标准字符串
+    // ========================================================
+
+
+       format(seq) 用于：
+       1. 页面显示；
+       2. 复制；
+       3. 去重；
+       4. 保存分析结果 key；
+       5. 缓存计数序列。
+
+       必须尽量保证：
+         format(parse(format(seq))) 等价于 seq
+
+       普通例：
+         format([0,1,2]) -> "0,1,2"
+
+       矩阵例：
+         format(cells) -> "(0)(1,1)"
+
+       DEN3 例：
+         format(rows) -> "(1,0)1(2,1,0)1"
+
+       极限表达式如果是特殊 item 序列，也可以在这里识别：
+         if (isLimitSeq(seq)) return 'sup{...,...}';
+
+    format(seq) {
+        return String(seq);
+    },
+
+
+    // ========================================================
+    // 4. formatToken：单个 token 如何显示
+    // ========================================================
+
+
+       formatToken(token) 用于 clickable sequence 内每一个可点击项的显示。
+
+       普通数字：
+         return String(token);
+
+       UPS：
+         return token[1] ? token[0] + '*' : String(token[0]);
+
+       矩阵 cell：
+         if (token.row === 0) return '(' + token.v + ...
+         else return String(token.v) + ...
+
+       DEN3 每一行：
+         return displayRow(token);
+
+       极限项如果是对象，也可以识别：
+         if (isLimitItem(token)) return formatLimitItem(token);
+
+    formatToken(token) {
+        return String(token);
+    },
+
+
+    // ========================================================
+    // 5. separator：token 之间的分隔符
+    // ========================================================
+
+
+       不写时框架默认 ','。
+
+       普通序列：
+         0,1,2,3
+         separator -> ','
+
+       DEN3：
+         (1,0)1(2,1,0)1
+         行之间直接拼接：
+         separator -> ''
+
+       矩阵：
+         (0)(1,1)
+         同一列内部逗号，跨列不加：
+         separator(curr, next) {
+             if (next.row === 0) return '';
+             return ',';
+         }
+
+       极限候选项：
+         sup{A,B,C,...}
+         候选项之间一般 return ',';
+
+    separator(curr, next, index, seq) {
+        return ',';
+    },
+
+
+    // ========================================================
+    // 6. compactTokens 分组
+    // ========================================================
+
+
+       只有 compactTokens: true 时通常需要。
+
+       作用：
+       把多个 token 当作一个显示组。
+
+       例如 WSM / DSM：
+         cell.col 相同的 cell 属于同一括号列。
+
+       getTokenGroupKey(cell) {
+           return cell.col;
+       }
+
+       极限项对象：
+         每个极限候选项单独成组：
+         if (isLimitItem(token)) return index;
+
+       普通记号不需要写。
+
+    getTokenGroupKey(token, index, seq) {
+        return index;
+    },
+
+
+    // ========================================================
+    // 7. compareSeq：表达式比较
+    // ========================================================
+
+
+       用于排序。
+
+       返回：
+         < 0 : a < b
+         > 0 : a > b
+         = 0 : 相等
+
+       不写时可以由框架默认用 format 字符串比较。
+       复杂记号建议自定义。
+
+       普通字典序例：
+
+    compareSeq(a, b) {
+        const sa = this.format(a);
+        const sb = this.format(b);
+        return sa.localeCompare(sb, 'zh-CN', { numeric: true });
+    },
+
+
+    // ========================================================
+    // 8. getBadRootIndex：坏根代表 token 下标
+    // ========================================================
+
+
+       返回坏根的代表 token 下标，0-based。
+       没有坏根返回 -1。
+
+       注意：
+       这里返回的是“代表 token”。
+       如果坏根实际是一整组，例如矩阵一整列，
+       可以再配合 isBadRootToken(record, index)。
+
+       PPS 例：
+         坏根是某个数字 token。
+
+       WSM / DSM 例：
+         坏根可能是某一列中的某个 cell；
+         如果精确 cell 被尾部 0 裁掉，可以返回该列第一个可见 cell。
+
+       DEN3 例：
+         当前项右侧 L 表示往左第 L 项是坏根：
+         const activeIndex = seq.length - 1;
+         const L = seq[activeIndex][0];
+         return activeIndex - L;
+
+    getBadRootIndex(seq) {
+        return -1;
+    },
+
+
+    // ========================================================
+    // 9. isBadRootToken：展开结果中哪些 token 属于坏根
+    // ========================================================
+
+
+       用于展开结果着色。
+
+       默认：
+         index === record.badRootIndex
+
+       如果坏根是一整列，例如 WSM / DSM：
+         isBadRootToken(record, index) {
+             const bad = record.result[record.badRootIndex];
+             const cur = record.result[index];
+             return bad && cur && bad.col === cur.col;
+         }
+
+       如果 expand 返回了 badRootColIndex，可以更稳：
+         return cur.col === record.badRootColIndex;
+
+       框架当前颜色逻辑：
+         - 坏根之前：黑色默认色
+         - 坏根：红色
+         - 坏根之后仍属于 goodLength：黄棕色
+         - 展开追加 groups：蓝绿交替
+
+    isBadRootToken(record, index) {
+        return index === record.badRootIndex;
+    },
+
+
+    // ========================================================
+    // 10. getHoverTargetIndices：悬停时高亮哪些 token
+    // ========================================================
+
+
+       鼠标悬停某个 token 时，框架会：
+       1. 截断到当前 token；
+       2. 调 getBadRootIndex(truncated)；
+       3. 再调 getHoverTargetIndices 决定页面上高亮哪些 token。
+
+       默认只高亮 badIndex 本身：
+         return [badIndex];
+
+       矩阵整列高亮：
+         const bad = seq[badIndex];
+         return seq.map((t,i)=>t.col===bad.col?i:-1).filter(i=>i>=0);
+
+       注意：
+       这里的 seq 是“截断表达式”，不是完整 record.result。
+
+    getHoverTargetIndices(seq, badIndex, hoveredIndex) {
+        return [badIndex];
+    },
+
+
+    // ========================================================
+    // 11. selectToken：点击 token 时自定义选择逻辑
+    // ========================================================
+
+
+       默认点击 token：
+         selectedSeq = record.result.slice(0, index + 1)
+
+       如果某个记号点击某个 token 时不是简单截断，可以写 selectToken。
+
+       例：
+         矩阵 compactTokens 下，点击某个 cell 时，
+         可能希望截到整列末尾，而不是截到这个 cell。
+
+    selectToken(record, index) {
+        return record.result.slice(0, index + 1);
+    },
+
+
+    // ========================================================
+    // 12. isSuccessor：后继序数判断
+    // ========================================================
+
+       用于计数序列。
+       判断当前表达式是否已经是后继序数。
+
+       PPS：
+         末项为 0 是后继。
+         return seq[seq.length - 1] === 0;
+
+       UPS：
+         末项为 [0,false] 是后继，或者旧逻辑里 expand 会 throw。
+         return last[0] === 0 && !last[1];
+
+       WSM / DSM：
+         末列全 0 是后继。
+         const matrix = cellsToMatrix(seq);
+         return matrix[matrix.length - 1].every(v => v === 0);
+
+       DEN3：
+         active 行没有 active[1+L] 时视作后继。
+
+    isSuccessor(seq) {
+        return false;
+    },
+
+
+    // ========================================================
+    // 13. countStep：计数序列的一步
+    // ========================================================
+
+
+       用于计数序列。
+
+       注意：
+       计数序列的一步 不一定等于 expand(seq, 1) 的完整结果。
+
+       框架默认逻辑通常是：
+         expanded = expand(seq, 1)
+         good = seq.slice(0, -1)
+         nextItem = expanded.groups[0][0]
+         return good.concat([nextItem])
+
+       这适合 PPS / UPS 这类：
+         固定最后一项，追踪它在第一轮展开中对应的新项。
+
+       WSM / DSM 这类矩阵：
+         应该用 expand(seq,1) 后的第一轮新增完整列：
+           good part + 第一新增列
+
+       如果默认逻辑不适合，就自定义 countStep。
+
+       返回：
+         下一步表达式 seq
+
+    countStep(seq) {
+        // 可不写，让框架默认处理。
+        return seq;
+    },
+
+
+    // ========================================================
+    // 14. getCountSequenceTargets：计数序列每一项对应哪些表达式
+    // ========================================================
+
+       默认规则：
+       - 普通序列：每个前缀是一项
+           [a0]
+           [a0,a1]
+           [a0,a1,a2]
+       - compactTokens 矩阵：每个分组前缀是一项
+           (0)
+           (0)(1,1)
+           (0)(1,1)(2,2)
+
+       如果某个记号要完全自定义计数目标，可以写这个。
+
+       注意：
+       计数序列应该基于 record.parsed，即原表达式，
+       不是 record.result 展开结果。
+    getCountSequenceTargets(record) {
+        return null; // 返回 null/undefined 表示用框架默认
+    },
+
+
+    // ========================================================
+    // 15. drawDiagram：悬停图示
+    // ========================================================
+
+       如果记号支持图示，提供 drawDiagram(seq)。
+
+       框架当前行为：
+       - 鼠标悬停 token；
+       - 框架截断到当前 token；
+       - 调 adapter.drawDiagram(truncatedSeq)；
+       - 在鼠标右下角显示 canvas 悬浮图；
+       - 鼠标移开隐藏。
+
+       返回格式：
+       {
+           width: Number,
+           height: Number,
+           noLimitX: Boolean, // 可选。true 表示横向不压缩，只按高度缩放。
+           actions: [
+               { type:'fillStyle', value:'white' },
+               { type:'strokeStyle', value:'black' },
+               { type:'lineWidth', value:1.5 },
+               { type:'font', size:14, font:'Arial' },
+               { type:'fillRect', value:{x,y,w,h} },
+               { type:'strokeRect', value:{x,y,w,h} },
+               { type:'clearRect', value:{x,y,w,h} },
+               { type:'line', start:{x,y}, end:{x,y} },
+               { type:'circle', center:{x,y}, radius:r, fill:Boolean },
+               { type:'text', value:'...', pos:{x,y}, h_center:Boolean }
+           ]
+       }
+
+       DEN3：
+         返回原作者点线图。
+
+       0-Y：
+         返回上下两块山脉图：
+           展开前
+           展开后
+         并设置 noLimitX: true。
+    drawDiagram(seq) {
+        return undefined;
+    },
+
+
+    // ========================================================
+    // 16. expand：核心展开函数
+    // ========================================================
+
+       expand(seq, times) 必须返回：
+
+       {
+           result: [],        // 展开后的完整 token 序列
+           goodLength: 0,     // 好部长度
+           groups: [],        // 每轮展开追加部分，用于蓝绿交替
+           badRootIndex: -1   // 坏根代表 token 下标
+       }
+
+       可选额外字段：
+       {
+           badRootColIndex: 0, // 矩阵类坏根列
+           badRootRowIndex: 0  // 矩阵类坏根行
+       }
+
+       result：
+         展开结果。
+
+       goodLength：
+         好部长度。
+         通常是原表达式去掉 active 末项后的长度。
+         框架用它判断哪些 token 属于好部。
+
+       groups：
+         每轮展开新增项。
+         必须按轮分开，蓝绿交替依赖它。
+
+         例：
+           result = good + G1 + G2 + G3
+
+           groups = [
+               G1,
+               G2,
+               G3
+           ]
+
+       badRootIndex：
+         result 中坏根代表 token 下标。
+
+       后继序数：
+         如果后继展开是删除末项，则：
+           result = 删除末项后的序列
+           goodLength = result.length
+           groups = []
+           badRootIndex = -1
+
+       矩阵类注意：
+         result / groups 一般都应该是 cell 序列。
+    expand(seq, times) {
+        return {
+            result: seq,
+            goodLength: seq.length,
+            groups: [],
+            badRootIndex: this.getBadRootIndex(seq)
+        };
+    },
+
+
+    // ========================================================
+    // 17. expandAlter：可选备用展开
+    // ========================================================
+
+       如果记号有另一种展开模式，但当前框架暂时没有按钮，
+       可以先提供 expandAlter，之后再接 UI。
+
+       例如 DEN3 的 FSalter。
+    expandAlter(seq, times) {
+        return this.expand(seq, times);
+    },
+
+
+    // ========================================================
+    // 18. limit：极限表达式
+    // ========================================================
+
+       如果该记号没有极限表达式，可以不写 limit。
+
+       框架行为：
+       1. 切换到该记号时，如果存在 limit，会自动插入极限表达式。
+       2. 点击极限表达式右侧 +：
+            record.result = adapter.limit.extend(record.result)
+       3. 点击极限表达式中某 token：
+            selectedSeq = adapter.limit.select(record.result, index)
+            然后把 selectedSeq 作为新表达式插入并展开。
+
+       极限表达式现在主要有三类：
+
+       --------------------------------------------------------
+       A. 截取式极限表达式
+       --------------------------------------------------------
+
+       例 PPS：
+         极限表达式显示：
+           0,1,2,3,4,...
+
+         内部 seq：
+           [0,1,2,3,4]
+
+         点击 3：
+           返回 [0,1,2,3]
+
+         limit: {
+             initial() {
+                 return [0,1,2,3];
+             },
+             extend(seq) {
+                 return [...seq, seq.length];
+             },
+             select(seq, index) {
+                 return seq.slice(0, index + 1);
+             }
+         }
+
+       --------------------------------------------------------
+       B. 选择表达式式极限表达式
+       --------------------------------------------------------
+
+       例 LPrSS / 0-Y：
+         极限候选项是：
+           1,2
+           1,3
+           1,4
+           ...
+
+         显示：
+           sup{1,2,1,3,1,4,...}
+
+         内部 seq：
+           [
+             {type:'limit-item', expr:[1,2]},
+             {type:'limit-item', expr:[1,3]},
+             {type:'limit-item', expr:[1,4]}
+           ]
+
+         点击 1,4：
+           直接返回 [1,4]
+
+         limit: {
+             initial() {
+                 return [
+                     makeLimitItem(2),
+                     makeLimitItem(3)
+                 ];
+             },
+             extend(seq) {
+                 return [...seq, makeLimitItem(seq.length + 2)];
+             },
+             select(seq, index) {
+                 return seq[index].expr;
+             }
+         }
+
+       --------------------------------------------------------
+       C. 单个无限表达式前缀式
+       --------------------------------------------------------
+
+       例 DEN3：
+         极限表达式不是候选表达式列表，
+         而是一个无限 DEN3 表达式的前缀：
+
+           (1,0)1(2,1,0)1(3,2,1,0)2(4,*3,2,1,0)2...
+
+         点击某一行：
+           返回从开头截取到这一行。
+
+         limit: {
+             initial() {
+                 return LimitDEN3(1);
+             },
+             extend(seq) {
+                 const nextN = seq.length - 1;
+                 return [
+                     ...deepCopyExpr(seq),
+                     LimitRowDEN3(nextN)
+                 ];
+             },
+             select(seq, index) {
+                 return deepCopyExpr(seq.slice(0, index + 1));
+             }
+         }
+
+       --------------------------------------------------------
+       D. 矩阵候选表达式式
+       --------------------------------------------------------
+
+       例 WSM：
+         sup{(0)(1),(0)(1,1),(0)(1,1,1),...}
+
+         点击 (0)(1,1,1)：
+           直接返回该完整矩阵表达式。
+
+       例 DSM：
+         sup{(0)(1),(0)(1)(2,1),(0)(1)(2,1)(3,2,1),...}
+
+         点击某一项：
+           直接返回该完整 DSM 表达式。
+
+       这种本质也是 B 类“选择表达式式”。
+
+    limit: {
+        initial() {
+            return [];
+        },
+
+        extend(seq) {
+            return seq;
+        },
+
+        select(seq, index) {
+            return seq.slice(0, index + 1);
+        }
+    }
+});
+*/
+
+
+/* ============================================================
+   12. 初始化
+============================================================ */
+
+function init() {
+    Object.values(notationRegistry).forEach(adapter => {
+        const option = document.createElement('option');
+        option.value = adapter.id;
+        option.textContent = adapter.name;
+        notationSelect.appendChild(option);
+    });
+
+    const first = Object.values(notationRegistry)[0];
+    if (first) {
+        notationSelect.value = first.id;
+        switchNotation(first.id);
+    }
+    document.getElementById('indentCheckbox').checked = indentEnabled;
+    document.getElementById('centerCheckbox').checked = autoCenterEnabled;
+    document.getElementById('analysisCheckbox').checked = showAnalysis;
+    document.getElementById('columnLabelsCheckbox').checked = showColumnLabels;
+
+    document.getElementById('countSequenceCheckbox').checked = showCountSequence;
+
+    const countOptions = document.getElementById('countSuccessorOptions');
+    if (countOptions) {
+        countOptions.style.display = showCountSequence ? 'inline-flex' : 'none';
+    }
+
+    document.querySelectorAll('input[name="countSuccessorElement"]').forEach(radio => {
+        radio.checked = Number(radio.value) === countSuccessorElement;
+    });
+
+    const resultCountCheckbox = document.getElementById('resultCountSequenceCheckbox');
+    if (resultCountCheckbox) {
+        resultCountCheckbox.checked = showResultCountSequence;
+    }
+
+    const resultCountOption = document.getElementById('resultCountSequenceOption');
+    if (resultCountOption) {
+        resultCountOption.style.display = showCountSequence ? 'inline-flex' : 'none';
+    }
+
+    const diagramCheckbox = document.getElementById('diagramCheckbox');
+    if (diagramCheckbox) {
+        diagramCheckbox.checked = showDiagrams;
+
+        diagramCheckbox.addEventListener('change', event => {
+            showDiagrams = event.target.checked;
+            updateDisplay();
+        });
+    }
+
+    sequenceInput.focus();
+}
+</script>
+<script>
+registerNotation({
+    id: 'pps',
+    name: '*PPS',
+    placeholder: '例如：0,1,0,1',
+    defaultTimes: 3,
+    lexDesc: true,
+
+    parse(input) {
+        input = input.trim();
+        if (!/^-?\d+(,-?\d+)*$/.test(input)) {
+            throw new Error('PPS 只能输入逗号分隔的整数');
+        }
+        return input.split(',').map(Number);
+    },
+
+    format(seq) {
+        return seq.join(',');
+    },
+
+    formatToken(token) {
+        return String(token);
+    },
+
+    compareSeq(a, b) {
+        const n = Math.min(a.length, b.length);
+        for (let i = 0; i < n; i++) {
+            if (a[i] !== b[i]) return a[i] - b[i];
+        }
+        return a.length - b.length;
+    },
+
+    getBadRootIndex(seq) {
+        if (!seq.length) return -1;
+        const last = seq[seq.length - 1];
+        if (last >= 1 && last <= seq.length) return last - 1;
+        return -1;
+    },
+
+    expand(seq, times) {
+        const n = seq.length;
+        const last = seq[n - 1];
+        const good = seq.slice(0, -1);
+        const groups = [];
+
+        const badRootIndex = this.getBadRootIndex(seq);
+
+        if (last === 0) {
+            return {
+                result: good,
+                goodLength: good.length,
+                groups,
+                badRootIndex
+            };
+        }
+
+        const parentIndex = last;
+        let badRootValue = null;
+        let badPart = [];
+        let diff = 0;
+        let whiteRootExists = false;
+
+        if (parentIndex >= 1 && parentIndex <= n) {
+            badRootValue = seq[parentIndex - 1];
+            badPart = seq.slice(parentIndex, n - 1);
+            diff = n - parentIndex;
+            whiteRootExists = badPart.some(v => v === badRootValue);
+        } else {
+            diff = n - parentIndex;
+        }
+
+        let result = good.slice();
+
+        for (let i = 1; i <= times; i++) {
+            const group = [];
+
+            if (whiteRootExists) {
+                group.push(badRootValue);
+            } else {
+                group.push(last - 1);
+            }
+
+            const processed = badPart.map(v => {
+                if (v < last) return v;
+                return v + diff * i;
+            });
+
+            group.push(...processed);
+            result.push(...group);
+            groups.push(group);
+        }
+
+        return {
+            result,
+            goodLength: good.length,
+            groups,
+            badRootIndex
+        };
+    },
+
+    limit: {
+        initial() {
+            return [0, 1, 2, 3];
+        },
+
+        extend(seq) {
+            const next = seq.length;
+            return [...seq, next];
+        },
+
+        select(seq, index) {
+            return seq.slice(0, index + 1);
+        }
+    }
+});
+</script>
+<script src="Notations/0Y.js"></script>
+<script src="Notations/bdhm.js"></script>
+<script src="Notations/bhm.js"></script>
+<script src="Notations/bm4.js"></script>
+<script src="Notations/cms.js"></script>
+<script src="Notations/den3.js"></script>
+<script src="Notations/dsm.js"></script>
+<script src="Notations/gprss.js"></script>
+<script src="Notations/ibms(test).js"></script>
+<script src="Notations/lmn.js"></script>
+<script src="Notations/mm311.js"></script>
+<script src="Notations/nfBSM.js"></script>
+<script src="Notations/prrs.js"></script>
+<script src="Notations/rprss.js"></script>
+<script src="Notations/tωmn.js"></script>
+<script src="Notations/tωdmn.js"></script>
+<script src="Notations/tωωmn.js"></script>
+<script src="Notations/mtωmn.js"></script>
+<script src="Notations/tbms.js"></script>
+<script src="Notations/ups.js"></script>
+<script src="Notations/wsm.js"></script>
+<script>
+    init();
+</script>
+</body>
+</html>
