@@ -35,6 +35,8 @@
     --info-hover: #4e737d;
 
     --shadow: rgba(47, 62, 53, 0.08);
+
+    --sequence-number-font-size: 17px;
 }
 
 * {
@@ -480,6 +482,20 @@ button:active {
     accent-color: var(--primary);
 }
 
+.option-check {
+    white-space: nowrap;
+}
+
+.font-size-input {
+    width: 58px !important;
+    min-width: 58px !important;
+    flex: 0 0 auto;
+    padding: 3px 6px !important;
+    margin-top: 0 !important;
+    font-size: 13px !important;
+    height: 24px;
+}
+
 .sequence-container {
     display: inline-flex;
     align-items: flex-start;
@@ -706,6 +722,18 @@ button:active {
     transform: translateY(1px);
 }
 
+.title-sequence .static-number,
+.title-sequence .static-comma,
+.expansion-result .clickable-number,
+.expansion-result .static-number,
+.expansion-result .comma,
+.expansion-result .static-comma,
+.limit-expression .clickable-number,
+.limit-expression .static-number,
+.limit-expression .comma,
+.limit-expression .static-comma {
+    font-size: var(--sequence-number-font-size) !important;
+}
 
 /* 手机端 */
 @media (max-width: 768px) {
@@ -819,6 +847,11 @@ button:active {
             图示(iblp等)
         </label>
         <label class="option-check">
+            字号:
+            <input type="number" id="sequenceFontSizeInput" class="font-size-input" value="17" min="10" max="40" step="1">
+            px
+        </label>
+        <label class="option-check">
             <input type="checkbox" id="countSequenceCheckbox">
             计数序列
         </label>
@@ -869,6 +902,14 @@ let showColumnLabels = false;
 let showCountSequence = false;
 let countSuccessorElement = 1;
 let showResultCountSequence = false;
+let sequenceNumberFontSize = 17;
+
+function applySequenceNumberFontSize() {
+    document.documentElement.style.setProperty(
+        '--sequence-number-font-size',
+        sequenceNumberFontSize + 'px'
+    );
+}
 
 const notationSelect = document.getElementById('notationSelect');
 const sequenceInput = document.getElementById('sequence');
@@ -2489,6 +2530,15 @@ outputDiv.addEventListener('mouseout', event => {
    10. 顶部按钮
 ============================================================ */
 
+document.getElementById('sequenceFontSizeInput').addEventListener('input', event => {
+    const value = Number(event.target.value);
+
+    if (!Number.isFinite(value)) return;
+
+    sequenceNumberFontSize = Math.max(8, Math.min(60, value));
+    applySequenceNumberFontSize();
+});
+
 document.getElementById('countSequenceCheckbox').addEventListener('change', event => {
     showCountSequence = event.target.checked;
     countSequenceCache.clear();
@@ -2575,750 +2625,6 @@ notationSelect.addEventListener('change', () => {
 });
 
 /* ============================================================
-   新记号模板 / Notation Adapter Template
-
-   说明：
-   每个记号通过 registerNotation(adapter) 注册。
-   adapter 是一个对象，框架会通过这些钩子完成：
-
-   1. 输入解析
-   2. 标准显示
-   3. token 显示
-   4. 点击截取 / 点击选择
-   5. 展开
-   6. 坏根标记
-   7. 悬停坏根高亮
-   8. 极限表达式
-   9. 计数序列
-   10. 图示悬浮显示
-   11. compactTokens 矩阵式显示
-
-   必需字段：
-     id
-     name
-     parse
-     format
-     formatToken
-     expand
-
-   常用可选字段：
-     placeholder
-     defaultTimes
-     lexDesc
-     compactTokens
-     separator
-     getTokenGroupKey
-     compareSeq
-     getBadRootIndex
-     isBadRootToken
-     getHoverTargetIndices
-     selectToken
-     isSuccessor
-     countStep
-     getCountSequenceTargets
-     drawDiagram
-     limit
-============================================================ */
-
-/*
-registerNotation({
-    // ========================================================
-    // 1. 基本信息
-    // ========================================================
-
-    // 记号系统唯一 id。
-    // 建议只用英文、数字、下划线，不要和已有 id 重复。
-    //
-    // 例：
-    // id: 'PPS'
-    // id: 'UPS'
-    // id: 'WSM'
-    // id: 'DSM'
-    // id: 'DEN3'
-    // id: '0Y'
-    id: 'newnotation',
-
-    // 下拉菜单里显示的名字。
-    name: '新记号',
-
-    // 输入框 placeholder。
-    placeholder: '例如：...',
-
-    // 默认展开次数。
-    defaultTimes: 3,
-
-    // 排序方向。
-    //
-    // true 或不写：
-    //   长度长的在前；
-    //   长度相同时，字典序大的在前。
-    //
-    // false：
-    //   如果某些记号需要反向字典序，可以设为 false。
-    lexDesc: true,
-
-    // 是否启用紧凑 token 显示。
-    //
-    // 普通序列，如：
-    //   PPS: 0,1,2,3
-    //   UPS: 0,1*,2*
-    //
-    // 一般：
-    //   compactTokens: false
-    //
-    // 矩阵 / 括号列记号，如：
-    //   WSM: (0)(1,1)
-    //   DSM: (0)(1)(2,1)
-    //
-    // 一般：
-    //   compactTokens: true
-    //
-    // compactTokens 开启后，框架会按 getTokenGroupKey 把 token 组成一组显示。
-    compactTokens: false,
-
-
-    // ========================================================
-    // 2. parse：输入字符串 -> 内部序列
-    // ========================================================
-
-    /*
-       parse(input) 必须返回内部序列。
-
-       普通数字序列例：
-         输入： "0,1,2,3"
-         输出： [0,1,2,3]
-
-       UPS 类例：
-         输入： "0,1*,2*"
-         输出： [[0,false],[1,true],[2,true]]
-
-       矩阵类例：
-         输入： "(0)(1,1)"
-         输出： cell 序列：
-         [
-             { v:0, col:0, row:0, colHeight:1 },
-             { v:1, col:1, row:0, colHeight:2 },
-             { v:1, col:1, row:1, colHeight:2 }
-         ]
-
-       DEN3 类例：
-         输入： "(1,0)1(2,1,0)1"
-         输出：
-         [
-             [1,[1],[0]],
-             [1,[2],[1],[0]]
-         ]
-
-       格式错误时：
-         throw new Error('错误提示');
-    parse(input) {
-        throw new Error('尚未实现 parse');
-    },
-
-
-    // ========================================================
-    // 3. format：内部序列 -> 标准字符串
-    // ========================================================
-
-
-       format(seq) 用于：
-       1. 页面显示；
-       2. 复制；
-       3. 去重；
-       4. 保存分析结果 key；
-       5. 缓存计数序列。
-
-       必须尽量保证：
-         format(parse(format(seq))) 等价于 seq
-
-       普通例：
-         format([0,1,2]) -> "0,1,2"
-
-       矩阵例：
-         format(cells) -> "(0)(1,1)"
-
-       DEN3 例：
-         format(rows) -> "(1,0)1(2,1,0)1"
-
-       极限表达式如果是特殊 item 序列，也可以在这里识别：
-         if (isLimitSeq(seq)) return 'sup{...,...}';
-
-    format(seq) {
-        return String(seq);
-    },
-
-
-    // ========================================================
-    // 4. formatToken：单个 token 如何显示
-    // ========================================================
-
-
-       formatToken(token) 用于 clickable sequence 内每一个可点击项的显示。
-
-       普通数字：
-         return String(token);
-
-       UPS：
-         return token[1] ? token[0] + '*' : String(token[0]);
-
-       矩阵 cell：
-         if (token.row === 0) return '(' + token.v + ...
-         else return String(token.v) + ...
-
-       DEN3 每一行：
-         return displayRow(token);
-
-       极限项如果是对象，也可以识别：
-         if (isLimitItem(token)) return formatLimitItem(token);
-
-    formatToken(token) {
-        return String(token);
-    },
-
-
-    // ========================================================
-    // 5. separator：token 之间的分隔符
-    // ========================================================
-
-
-       不写时框架默认 ','。
-
-       普通序列：
-         0,1,2,3
-         separator -> ','
-
-       DEN3：
-         (1,0)1(2,1,0)1
-         行之间直接拼接：
-         separator -> ''
-
-       矩阵：
-         (0)(1,1)
-         同一列内部逗号，跨列不加：
-         separator(curr, next) {
-             if (next.row === 0) return '';
-             return ',';
-         }
-
-       极限候选项：
-         sup{A,B,C,...}
-         候选项之间一般 return ',';
-
-    separator(curr, next, index, seq) {
-        return ',';
-    },
-
-
-    // ========================================================
-    // 6. compactTokens 分组
-    // ========================================================
-
-
-       只有 compactTokens: true 时通常需要。
-
-       作用：
-       把多个 token 当作一个显示组。
-
-       例如 WSM / DSM：
-         cell.col 相同的 cell 属于同一括号列。
-
-       getTokenGroupKey(cell) {
-           return cell.col;
-       }
-
-       极限项对象：
-         每个极限候选项单独成组：
-         if (isLimitItem(token)) return index;
-
-       普通记号不需要写。
-
-    getTokenGroupKey(token, index, seq) {
-        return index;
-    },
-
-
-    // ========================================================
-    // 7. compareSeq：表达式比较
-    // ========================================================
-
-
-       用于排序。
-
-       返回：
-         < 0 : a < b
-         > 0 : a > b
-         = 0 : 相等
-
-       不写时可以由框架默认用 format 字符串比较。
-       复杂记号建议自定义。
-
-       普通字典序例：
-
-    compareSeq(a, b) {
-        const sa = this.format(a);
-        const sb = this.format(b);
-        return sa.localeCompare(sb, 'zh-CN', { numeric: true });
-    },
-
-
-    // ========================================================
-    // 8. getBadRootIndex：坏根代表 token 下标
-    // ========================================================
-
-
-       返回坏根的代表 token 下标，0-based。
-       没有坏根返回 -1。
-
-       注意：
-       这里返回的是“代表 token”。
-       如果坏根实际是一整组，例如矩阵一整列，
-       可以再配合 isBadRootToken(record, index)。
-
-       PPS 例：
-         坏根是某个数字 token。
-
-       WSM / DSM 例：
-         坏根可能是某一列中的某个 cell；
-         如果精确 cell 被尾部 0 裁掉，可以返回该列第一个可见 cell。
-
-       DEN3 例：
-         当前项右侧 L 表示往左第 L 项是坏根：
-         const activeIndex = seq.length - 1;
-         const L = seq[activeIndex][0];
-         return activeIndex - L;
-
-    getBadRootIndex(seq) {
-        return -1;
-    },
-
-
-    // ========================================================
-    // 9. isBadRootToken：展开结果中哪些 token 属于坏根
-    // ========================================================
-
-
-       用于展开结果着色。
-
-       默认：
-         index === record.badRootIndex
-
-       如果坏根是一整列，例如 WSM / DSM：
-         isBadRootToken(record, index) {
-             const bad = record.result[record.badRootIndex];
-             const cur = record.result[index];
-             return bad && cur && bad.col === cur.col;
-         }
-
-       如果 expand 返回了 badRootColIndex，可以更稳：
-         return cur.col === record.badRootColIndex;
-
-       框架当前颜色逻辑：
-         - 坏根之前：黑色默认色
-         - 坏根：红色
-         - 坏根之后仍属于 goodLength：黄棕色
-         - 展开追加 groups：蓝绿交替
-
-    isBadRootToken(record, index) {
-        return index === record.badRootIndex;
-    },
-
-
-    // ========================================================
-    // 10. getHoverTargetIndices：悬停时高亮哪些 token
-    // ========================================================
-
-
-       鼠标悬停某个 token 时，框架会：
-       1. 截断到当前 token；
-       2. 调 getBadRootIndex(truncated)；
-       3. 再调 getHoverTargetIndices 决定页面上高亮哪些 token。
-
-       默认只高亮 badIndex 本身：
-         return [badIndex];
-
-       矩阵整列高亮：
-         const bad = seq[badIndex];
-         return seq.map((t,i)=>t.col===bad.col?i:-1).filter(i=>i>=0);
-
-       注意：
-       这里的 seq 是“截断表达式”，不是完整 record.result。
-
-    getHoverTargetIndices(seq, badIndex, hoveredIndex) {
-        return [badIndex];
-    },
-
-
-    // ========================================================
-    // 11. selectToken：点击 token 时自定义选择逻辑
-    // ========================================================
-
-
-       默认点击 token：
-         selectedSeq = record.result.slice(0, index + 1)
-
-       如果某个记号点击某个 token 时不是简单截断，可以写 selectToken。
-
-       例：
-         矩阵 compactTokens 下，点击某个 cell 时，
-         可能希望截到整列末尾，而不是截到这个 cell。
-
-    selectToken(record, index) {
-        return record.result.slice(0, index + 1);
-    },
-
-
-    // ========================================================
-    // 12. isSuccessor：后继序数判断
-    // ========================================================
-
-       用于计数序列。
-       判断当前表达式是否已经是后继序数。
-
-       PPS：
-         末项为 0 是后继。
-         return seq[seq.length - 1] === 0;
-
-       UPS：
-         末项为 [0,false] 是后继，或者旧逻辑里 expand 会 throw。
-         return last[0] === 0 && !last[1];
-
-       WSM / DSM：
-         末列全 0 是后继。
-         const matrix = cellsToMatrix(seq);
-         return matrix[matrix.length - 1].every(v => v === 0);
-
-       DEN3：
-         active 行没有 active[1+L] 时视作后继。
-
-    isSuccessor(seq) {
-        return false;
-    },
-
-
-    // ========================================================
-    // 13. countStep：计数序列的一步
-    // ========================================================
-
-
-       用于计数序列。
-
-       注意：
-       计数序列的一步 不一定等于 expand(seq, 1) 的完整结果。
-
-       框架默认逻辑通常是：
-         expanded = expand(seq, 1)
-         good = seq.slice(0, -1)
-         nextItem = expanded.groups[0][0]
-         return good.concat([nextItem])
-
-       这适合 PPS / UPS 这类：
-         固定最后一项，追踪它在第一轮展开中对应的新项。
-
-       WSM / DSM 这类矩阵：
-         应该用 expand(seq,1) 后的第一轮新增完整列：
-           good part + 第一新增列
-
-       如果默认逻辑不适合，就自定义 countStep。
-
-       返回：
-         下一步表达式 seq
-
-    countStep(seq) {
-        // 可不写，让框架默认处理。
-        return seq;
-    },
-
-
-    // ========================================================
-    // 14. getCountSequenceTargets：计数序列每一项对应哪些表达式
-    // ========================================================
-
-       默认规则：
-       - 普通序列：每个前缀是一项
-           [a0]
-           [a0,a1]
-           [a0,a1,a2]
-       - compactTokens 矩阵：每个分组前缀是一项
-           (0)
-           (0)(1,1)
-           (0)(1,1)(2,2)
-
-       如果某个记号要完全自定义计数目标，可以写这个。
-
-       注意：
-       计数序列应该基于 record.parsed，即原表达式，
-       不是 record.result 展开结果。
-    getCountSequenceTargets(record) {
-        return null; // 返回 null/undefined 表示用框架默认
-    },
-
-
-    // ========================================================
-    // 15. drawDiagram：悬停图示
-    // ========================================================
-
-       如果记号支持图示，提供 drawDiagram(seq)。
-
-       框架当前行为：
-       - 鼠标悬停 token；
-       - 框架截断到当前 token；
-       - 调 adapter.drawDiagram(truncatedSeq)；
-       - 在鼠标右下角显示 canvas 悬浮图；
-       - 鼠标移开隐藏。
-
-       返回格式：
-       {
-           width: Number,
-           height: Number,
-           noLimitX: Boolean, // 可选。true 表示横向不压缩，只按高度缩放。
-           actions: [
-               { type:'fillStyle', value:'white' },
-               { type:'strokeStyle', value:'black' },
-               { type:'lineWidth', value:1.5 },
-               { type:'font', size:14, font:'Arial' },
-               { type:'fillRect', value:{x,y,w,h} },
-               { type:'strokeRect', value:{x,y,w,h} },
-               { type:'clearRect', value:{x,y,w,h} },
-               { type:'line', start:{x,y}, end:{x,y} },
-               { type:'circle', center:{x,y}, radius:r, fill:Boolean },
-               { type:'text', value:'...', pos:{x,y}, h_center:Boolean }
-           ]
-       }
-
-       DEN3：
-         返回原作者点线图。
-
-       0-Y：
-         返回上下两块山脉图：
-           展开前
-           展开后
-         并设置 noLimitX: true。
-    drawDiagram(seq) {
-        return undefined;
-    },
-
-
-    // ========================================================
-    // 16. expand：核心展开函数
-    // ========================================================
-
-       expand(seq, times) 必须返回：
-
-       {
-           result: [],        // 展开后的完整 token 序列
-           goodLength: 0,     // 好部长度
-           groups: [],        // 每轮展开追加部分，用于蓝绿交替
-           badRootIndex: -1   // 坏根代表 token 下标
-       }
-
-       可选额外字段：
-       {
-           badRootColIndex: 0, // 矩阵类坏根列
-           badRootRowIndex: 0  // 矩阵类坏根行
-       }
-
-       result：
-         展开结果。
-
-       goodLength：
-         好部长度。
-         通常是原表达式去掉 active 末项后的长度。
-         框架用它判断哪些 token 属于好部。
-
-       groups：
-         每轮展开新增项。
-         必须按轮分开，蓝绿交替依赖它。
-
-         例：
-           result = good + G1 + G2 + G3
-
-           groups = [
-               G1,
-               G2,
-               G3
-           ]
-
-       badRootIndex：
-         result 中坏根代表 token 下标。
-
-       后继序数：
-         如果后继展开是删除末项，则：
-           result = 删除末项后的序列
-           goodLength = result.length
-           groups = []
-           badRootIndex = -1
-
-       矩阵类注意：
-         result / groups 一般都应该是 cell 序列。
-    expand(seq, times) {
-        return {
-            result: seq,
-            goodLength: seq.length,
-            groups: [],
-            badRootIndex: this.getBadRootIndex(seq)
-        };
-    },
-
-
-    // ========================================================
-    // 17. expandAlter：可选备用展开
-    // ========================================================
-
-       如果记号有另一种展开模式，但当前框架暂时没有按钮，
-       可以先提供 expandAlter，之后再接 UI。
-
-       例如 DEN3 的 FSalter。
-    expandAlter(seq, times) {
-        return this.expand(seq, times);
-    },
-
-
-    // ========================================================
-    // 18. limit：极限表达式
-    // ========================================================
-
-       如果该记号没有极限表达式，可以不写 limit。
-
-       框架行为：
-       1. 切换到该记号时，如果存在 limit，会自动插入极限表达式。
-       2. 点击极限表达式右侧 +：
-            record.result = adapter.limit.extend(record.result)
-       3. 点击极限表达式中某 token：
-            selectedSeq = adapter.limit.select(record.result, index)
-            然后把 selectedSeq 作为新表达式插入并展开。
-
-       极限表达式现在主要有三类：
-
-       --------------------------------------------------------
-       A. 截取式极限表达式
-       --------------------------------------------------------
-
-       例 PPS：
-         极限表达式显示：
-           0,1,2,3,4,...
-
-         内部 seq：
-           [0,1,2,3,4]
-
-         点击 3：
-           返回 [0,1,2,3]
-
-         limit: {
-             initial() {
-                 return [0,1,2,3];
-             },
-             extend(seq) {
-                 return [...seq, seq.length];
-             },
-             select(seq, index) {
-                 return seq.slice(0, index + 1);
-             }
-         }
-
-       --------------------------------------------------------
-       B. 选择表达式式极限表达式
-       --------------------------------------------------------
-
-       例 LPrSS / 0-Y：
-         极限候选项是：
-           1,2
-           1,3
-           1,4
-           ...
-
-         显示：
-           sup{1,2,1,3,1,4,...}
-
-         内部 seq：
-           [
-             {type:'limit-item', expr:[1,2]},
-             {type:'limit-item', expr:[1,3]},
-             {type:'limit-item', expr:[1,4]}
-           ]
-
-         点击 1,4：
-           直接返回 [1,4]
-
-         limit: {
-             initial() {
-                 return [
-                     makeLimitItem(2),
-                     makeLimitItem(3)
-                 ];
-             },
-             extend(seq) {
-                 return [...seq, makeLimitItem(seq.length + 2)];
-             },
-             select(seq, index) {
-                 return seq[index].expr;
-             }
-         }
-
-       --------------------------------------------------------
-       C. 单个无限表达式前缀式
-       --------------------------------------------------------
-
-       例 DEN3：
-         极限表达式不是候选表达式列表，
-         而是一个无限 DEN3 表达式的前缀：
-
-           (1,0)1(2,1,0)1(3,2,1,0)2(4,*3,2,1,0)2...
-
-         点击某一行：
-           返回从开头截取到这一行。
-
-         limit: {
-             initial() {
-                 return LimitDEN3(1);
-             },
-             extend(seq) {
-                 const nextN = seq.length - 1;
-                 return [
-                     ...deepCopyExpr(seq),
-                     LimitRowDEN3(nextN)
-                 ];
-             },
-             select(seq, index) {
-                 return deepCopyExpr(seq.slice(0, index + 1));
-             }
-         }
-
-       --------------------------------------------------------
-       D. 矩阵候选表达式式
-       --------------------------------------------------------
-
-       例 WSM：
-         sup{(0)(1),(0)(1,1),(0)(1,1,1),...}
-
-         点击 (0)(1,1,1)：
-           直接返回该完整矩阵表达式。
-
-       例 DSM：
-         sup{(0)(1),(0)(1)(2,1),(0)(1)(2,1)(3,2,1),...}
-
-         点击某一项：
-           直接返回该完整 DSM 表达式。
-
-       这种本质也是 B 类“选择表达式式”。
-
-    limit: {
-        initial() {
-            return [];
-        },
-
-        extend(seq) {
-            return seq;
-        },
-
-        select(seq, index) {
-            return seq.slice(0, index + 1);
-        }
-    }
-});
-*/
-
-
-/* ============================================================
    12. 初始化
 ============================================================ */
 
@@ -3339,6 +2645,12 @@ function init() {
     document.getElementById('centerCheckbox').checked = autoCenterEnabled;
     document.getElementById('analysisCheckbox').checked = showAnalysis;
     document.getElementById('columnLabelsCheckbox').checked = showColumnLabels;
+
+    const sequenceFontSizeInput = document.getElementById('sequenceFontSizeInput');
+    if (sequenceFontSizeInput) {
+        sequenceFontSizeInput.value = sequenceNumberFontSize;
+        applySequenceNumberFontSize();
+    }
 
     document.getElementById('countSequenceCheckbox').checked = showCountSequence;
 
