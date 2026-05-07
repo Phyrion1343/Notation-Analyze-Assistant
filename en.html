@@ -1228,6 +1228,44 @@ function switchNotation(id) {
    4. 插入和展开
 ============================================================ */
 
+function updateExistingExpansion(recordId, newTimes, shouldScroll = true) {
+    const adapter = getAdapter();
+    const state = getState();
+
+    const record = state.history.find(r => r.id === recordId);
+
+    if (!record || record.isLimit) return false;
+
+    let expanded;
+
+    try {
+        expanded = adapter.expand(clone(record.parsed), newTimes);
+    } catch (err) {
+        showError('更新展开失败：' + err.message);
+        return false;
+    }
+
+    if (!expanded || !expanded.result) {
+        showError('This expression cannot be expanded');
+        return false;
+    }
+
+    record.result = expanded.result;
+    record.goodLength = expanded.goodLength ?? Math.max(record.parsed.length - 1, 0);
+    record.groups = expanded.groups ?? [];
+    record.badRootIndex = expanded.badRootIndex ?? adapter.getBadRootIndex?.(record.parsed) ?? -1;
+    record.times = newTimes;
+    record.updatedAt = Date.now();
+
+    updateDisplay();
+
+    if (autoCenterEnabled && shouldScroll) {
+        scrollToRecord(record.id);
+    }
+
+    return true;
+}
+
 function insertSequence() {
     const adapter = getAdapter();
     const state = getState();
@@ -1255,15 +1293,24 @@ function insertSequence() {
 
     const normalized = adapter.format(parsed);
 
-    const exists = state.history.some(r => !r.isLimit && r.source === normalized);
-    if (exists) {
-        alert('This expression already exists in the expansion tree!');
+    const existedRecord = state.history.find(r => !r.isLimit && r.source === normalized);
+
+    if (existedRecord) {
+        if (existedRecord.times === times) {
+            alert('This expression already exists in the expansion tree!');
+            return;
+        }
+
+        updateExistingExpansion(existedRecord.id, times, true);
+
+        sequenceInput.value = '';
+        cancelInsertAfter();
+
         return;
     }
 
     performExpansion(normalized, times, true, null, state.insertAfterTarget, false);
 
-    sequenceInput.value = '';
     cancelInsertAfter();
 }
 
@@ -2036,9 +2083,9 @@ function updateDisplay() {
             html += `<span>Limit:</span>`;
             html += createClickableSequence(record, { plus: true, ellipsis: true });
         } else if (record.isRoot) {
-            html += `<span>Expression: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
+            html += `<span>Original: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
         } else {
-            html += `<span>Expression: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
+            html += `<span>Truncated: <span class="title-sequence">${createStaticSequence(record.parsed, record.badRootIndex)}</span></span>`;
         }
 
         html += `
@@ -2334,7 +2381,15 @@ function showHoverDiagramForSequence(seq, event) {
     const tooltip = ensureHoverDiagramTooltip();
     const canvas = tooltip.querySelector('canvas');
 
-    renderDiagramActionsToCanvasCropped(canvas, diagram, 300, 240);
+    const hoverMaxWidth = diagram.hoverMaxWidth || 300;
+    const hoverMaxHeight = diagram.hoverMaxHeight || 240;
+
+    renderDiagramActionsToCanvasCropped(
+        canvas,
+        diagram,
+        hoverMaxWidth,
+        hoverMaxHeight
+    );
 
     tooltip.style.display = 'block';
     moveHoverDiagram(event);
@@ -2513,10 +2568,14 @@ outputDiv.addEventListener('click', event => {
         const times = parseInt(timesInput.value, 10) || 0;
 
         const existedRecord = state.history.find(r => !r.isLimit && r.source === source);
+
         if (existedRecord) {
-            if (autoCenterEnabled) {
+            if (existedRecord.times !== times) {
+                updateExistingExpansion(existedRecord.id, times, true);
+            } else if (autoCenterEnabled) {
                 scrollToRecord(existedRecord.id);
             }
+
             return;
         }
 

@@ -1228,6 +1228,44 @@ function switchNotation(id) {
    4. 插入和展开
 ============================================================ */
 
+function updateExistingExpansion(recordId, newTimes, shouldScroll = true) {
+    const adapter = getAdapter();
+    const state = getState();
+
+    const record = state.history.find(r => r.id === recordId);
+
+    if (!record || record.isLimit) return false;
+
+    let expanded;
+
+    try {
+        expanded = adapter.expand(clone(record.parsed), newTimes);
+    } catch (err) {
+        showError('更新展开失败：' + err.message);
+        return false;
+    }
+
+    if (!expanded || !expanded.result) {
+        showError('该表达式无法展开');
+        return false;
+    }
+
+    record.result = expanded.result;
+    record.goodLength = expanded.goodLength ?? Math.max(record.parsed.length - 1, 0);
+    record.groups = expanded.groups ?? [];
+    record.badRootIndex = expanded.badRootIndex ?? adapter.getBadRootIndex?.(record.parsed) ?? -1;
+    record.times = newTimes;
+    record.updatedAt = Date.now();
+
+    updateDisplay();
+
+    if (autoCenterEnabled && shouldScroll) {
+        scrollToRecord(record.id);
+    }
+
+    return true;
+}
+
 function insertSequence() {
     const adapter = getAdapter();
     const state = getState();
@@ -1255,9 +1293,19 @@ function insertSequence() {
 
     const normalized = adapter.format(parsed);
 
-    const exists = state.history.some(r => !r.isLimit && r.source === normalized);
-    if (exists) {
-        alert('该表达式已经存在于展开树中！');
+    const existedRecord = state.history.find(r => !r.isLimit && r.source === normalized);
+
+    if (existedRecord) {
+        if (existedRecord.times === times) {
+            alert('该表达式已经存在于展开树中！');
+            return;
+        }
+
+        updateExistingExpansion(existedRecord.id, times, true);
+
+        sequenceInput.value = '';
+        cancelInsertAfter();
+
         return;
     }
 
@@ -2520,10 +2568,14 @@ outputDiv.addEventListener('click', event => {
         const times = parseInt(timesInput.value, 10) || 0;
 
         const existedRecord = state.history.find(r => !r.isLimit && r.source === source);
+
         if (existedRecord) {
-            if (autoCenterEnabled) {
+            if (existedRecord.times !== times) {
+                updateExistingExpansion(existedRecord.id, times, true);
+            } else if (autoCenterEnabled) {
                 scrollToRecord(existedRecord.id);
             }
+
             return;
         }
 
