@@ -361,6 +361,7 @@ button:active {
     color: #713d38;
 }
 
+.expand-less-btn,
 .expand-more-btn {
     margin: 0 0 0 4px;
     padding: 0;
@@ -390,6 +391,7 @@ button:active {
         box-shadow 0.15s ease;
 }
 
+.expand-less-btn:hover,
 .expand-more-btn:hover {
     background-color: #edf7f0;
     color: #365943;
@@ -397,6 +399,7 @@ button:active {
     box-shadow: 0 0 0 3px rgba(127, 167, 141, 0.18);
 }
 
+.expand-less-btn:active,
 .expand-more-btn:active {
     background-color: #dfeee5;
     transform: translateY(1px);
@@ -594,7 +597,8 @@ button:active {
     box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
 }
 
-.compact-sequence .expand-more-btn {
+.sequence-container.compact-sequence .expand-more-btn,
+.sequence-container.compact-sequence .expand-less-btn {
     margin-left: 4px;
 }
 
@@ -1264,6 +1268,19 @@ function updateExistingExpansion(recordId, newTimes, shouldScroll = true) {
     }
 
     return true;
+}
+
+function decreaseExpansion(recordId) {
+    const state = getState();
+    const record = state.history.find(r => r.id === recordId);
+
+    if (!record || record.isLimit) return;
+
+    if (record.times <= 0) return;
+
+    const newTimes = record.times - 1;
+
+    updateExistingExpansion(recordId, newTimes, true);
 }
 
 function insertSequence() {
@@ -1992,6 +2009,17 @@ function createClickableSequence(record, options = {}) {
                 + `</div>`;
         }
 
+        if (options.minus && record.times > 0) {
+            s += `<div class="sequence-column">`
+                + `<div class="compact-token-group">`
+                + `<button class="expand-less-btn" `
+                + `data-action="decrease" `
+                + `data-expansion-id="${record.id}">-</button>`
+                + `</div>`
+                + labelHTML('&nbsp;')
+                + `</div>`;
+        }
+
         s += `</div>`;
         return s;
     }
@@ -2044,6 +2072,15 @@ function createClickableSequence(record, options = {}) {
             + `<button class="expand-more-btn" `
             + `data-action="continue" `
             + `data-expansion-id="${record.id}">+</button>`
+            + labelHTML('&nbsp;')
+            + `</div>`;
+    }
+
+    if (options.minus && record.times > 0) {
+        s += `<div class="sequence-column">`
+            + `<button class="expand-less-btn" `
+            + `data-action="decrease" `
+            + `data-expansion-id="${record.id}">-</button>`
             + labelHTML('&nbsp;')
             + `</div>`;
     }
@@ -2108,7 +2145,7 @@ function updateDisplay() {
 
             html += `
                 <div class="expansion-result">
-                    展开结果: ${createClickableSequence(record, { plus: true })}
+                    展开结果: ${createClickableSequence(record, { plus: true, minus: true })}
                 </div>
             `;
             
@@ -2540,6 +2577,11 @@ outputDiv.addEventListener('click', event => {
 
     if (action === 'continue') {
         continueExpansion(id);
+        return;
+    }
+
+    if (action === 'decrease') {
+        decreaseExpansion(id);
         return;
     }
 
@@ -3021,6 +3063,7 @@ registerNotation({
 <script src="Notations/den3.js"></script>
 <script src="Notations/dsm.js"></script>
 <script src="Notations/gprss.js"></script>
+<script src="Notations/hprss.js"></script>
 <script src="Notations/ibms(test).js"></script>
 <script src="Notations/lmn.js"></script>
 <script src="Notations/mm311.js"></script>
