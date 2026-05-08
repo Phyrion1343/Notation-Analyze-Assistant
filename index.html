@@ -405,6 +405,11 @@ button:active {
     transform: translateY(1px);
 }
 
+.expand-less-btn::before {
+    content: "−";
+    transform: translateY(-1.5px);
+}
+
 .limit-expression {
     background-color: #e8f3eb !important;
     border-color: #9fc6aa !important;
@@ -2014,7 +2019,7 @@ function createClickableSequence(record, options = {}) {
                 + `<div class="compact-token-group">`
                 + `<button class="expand-less-btn" `
                 + `data-action="decrease" `
-                + `data-expansion-id="${record.id}">-</button>`
+                + `data-expansion-id="${record.id}"></button>`
                 + `</div>`
                 + labelHTML('&nbsp;')
                 + `</div>`;
@@ -2080,7 +2085,7 @@ function createClickableSequence(record, options = {}) {
         s += `<div class="sequence-column">`
             + `<button class="expand-less-btn" `
             + `data-action="decrease" `
-            + `data-expansion-id="${record.id}">-</button>`
+            + `data-expansion-id="${record.id}"></button>`
             + labelHTML('&nbsp;')
             + `</div>`;
     }
@@ -2861,7 +2866,6 @@ document.getElementById('reloadBtn').addEventListener('click', () => {
     state.counter = 0;
     state.insertAfterTarget = null;
 
-    sequenceInput.value = '';
     timesInput.value = getAdapter().defaultTimes ?? 3;
 
     initializeLimitExpression(currentNotationId);
