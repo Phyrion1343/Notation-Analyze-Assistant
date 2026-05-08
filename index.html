@@ -1781,6 +1781,84 @@ function computeCountValue(seq, successorElement) {
     return value;
 }
 
+function computeCountValueWithAdapter(adapter, notationId, seq, successorElement) {
+    let formatted;
+    try {
+        formatted = adapter.format(seq);
+    } catch {
+        formatted = JSON.stringify(seq);
+    }
+
+    const cacheKey = notationId + '|' + successorElement + '|' + formatted;
+
+    if (countSequenceCache.has(cacheKey)) {
+        return countSequenceCache.get(cacheKey);
+    }
+
+    let current = clone(seq);
+    let count = 0;
+    const MAX_STEPS = 1000;
+
+    function isSucc(s) {
+        if (!s || s.length === 0) return true;
+
+        if (adapter.isSuccessor) {
+            try {
+                return adapter.isSuccessor(s);
+            } catch {
+                return false;
+            }
+        }
+
+        try {
+            const expanded = adapter.expand(clone(s), 1);
+            if (!expanded || !expanded.result) return true;
+            return expanded.result.length < s.length;
+        } catch {
+            return true;
+        }
+    }
+
+    function step(s) {
+        if (adapter.countStep) {
+            return adapter.countStep(clone(s));
+        }
+
+        const expanded = adapter.expand(clone(s), 1);
+
+        if (
+            expanded &&
+            expanded.groups &&
+            expanded.groups.length > 0 &&
+            expanded.groups[0] &&
+            expanded.groups[0].length > 0
+        ) {
+            const good = s.slice(0, -1);
+            return good.concat([clone(expanded.groups[0][0])]);
+        }
+
+        if (expanded && expanded.result) {
+            return expanded.result;
+        }
+
+        throw new Error('无法计数展开');
+    }
+
+    while (!isSucc(current)) {
+        if (count > MAX_STEPS) {
+            countSequenceCache.set(cacheKey, '?');
+            return '?';
+        }
+
+        current = step(current);
+        count++;
+    }
+
+    const value = successorElement + count;
+    countSequenceCache.set(cacheKey, value);
+    return value;
+}
+
 function getCountSequenceTargetsFromSeq(seq) {
     const adapter = getAdapter();
 
@@ -1842,8 +1920,23 @@ function createCountSequenceLine(record, useResult = false) {
 
     if (useResult && !showResultCountSequence) return '';
 
-    const targets = getCountSequenceTargets(record, useResult);
+    const adapter = getAdapter();
 
+    if (adapter.getCountSequenceValues) {
+        try {
+            const values = adapter.getCountSequenceValues(record, countSuccessorElement, useResult);
+            if (Array.isArray(values) && values.length > 0) {
+                return `
+                    <div class="analysis-line">
+                        <span class="analysis-line-label">计数序列:</span>
+                        ${escapeHTML(values.join(','))}
+                    </div>
+                `;
+            }
+        } catch {}
+    }
+
+    const targets = getCountSequenceTargets(record, useResult);
     if (!targets || targets.length === 0) return '';
 
     const values = targets.map(seq => {
@@ -1854,11 +1947,9 @@ function createCountSequenceLine(record, useResult = false) {
         }
     });
 
-    const label = useResult ? '计数序列:' : '计数序列:';
-
     return `
         <div class="analysis-line">
-            <span class="analysis-line-label">${label}</span>
+            <span class="analysis-line-label">计数序列:</span>
             ${escapeHTML(values.join(','))}
         </div>
     `;

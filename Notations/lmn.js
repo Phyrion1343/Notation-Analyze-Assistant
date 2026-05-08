@@ -705,6 +705,39 @@
         return annotatePairsLMN(exprToPairs(expr));
     }
 
+    function lmnPairsToMatrixCells(pairs) {
+        const cells = [];
+    
+        for (let c = 0; c < pairs.length; c++) {
+            const p = pairs[c];
+    
+            cells.push({
+                v: p.depth,
+                col: c,
+                row: 0,
+                colHeight: 2
+            });
+    
+            cells.push({
+                v: p.value,
+                col: c,
+                row: 1,
+                colHeight: 2
+            });
+        }
+    
+        return cells;
+    }
+    
+    function lmnSeqPrefixToMatrixCells(seq, endIndex) {
+        const pairs = seq.slice(0, endIndex + 1).map(t => ({
+            depth: t.depth,
+            value: t.value
+        }));
+    
+        return lmnPairsToMatrixCells(pairs);
+    }
+
     function sameLMNPair(a, b) {
         return a &&
             b &&
@@ -859,6 +892,37 @@
             // 最后一项 token.text 末尾已经添加了一个 '('，
             // 所以这里需要关闭 depth + 1 层括号。
             return '...' + ')'.repeat(last.depth + 1);
+        },
+
+        getCountSequenceValues(record, successorElement, useResult) {
+            const seq = useResult ? record.result : record.parsed;
+        
+            if (!seq || seq.length === 0) return [];
+        
+            const matrixAdapter =
+                notationRegistry['WSM'] ||
+                notationRegistry['wsm'];
+        
+            if (!matrixAdapter) {
+                return ['?'];
+            }
+        
+            const values = [];
+        
+            for (let i = 0; i < seq.length; i++) {
+                const matrixSeq = lmnSeqPrefixToMatrixCells(seq, i);
+        
+                const v = computeCountValueWithAdapter(
+                    matrixAdapter,
+                    matrixAdapter.id || 'WSM',
+                    matrixSeq,
+                    successorElement
+                );
+        
+                values.push(v);
+            }
+        
+            return values;
         },
 
         limit: {
