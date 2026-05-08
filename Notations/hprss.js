@@ -126,7 +126,7 @@
 
     function expandHPrSS(seq, times) {
         const arr = [...seq];
-
+    
         if (arr.length === 0) {
             return {
                 result: [],
@@ -135,9 +135,9 @@
                 badRootIndex: -1
             };
         }
-
+    
         const info = analyzeHPrSS(arr);
-
+    
         if (info.isSuccessor) {
             return {
                 result: info.result,
@@ -146,19 +146,27 @@
                 badRootIndex: -1
             };
         }
-
-        const res = [...info.good];
+    
+        const res = [];
+    
+        res.push(...info.good);
+    
+        res.push(...info.bad);
+    
+        const originalBadLength = info.bad.length;
+        const goodLength = info.good.length + originalBadLength;
+    
         const groups = [];
-
-        for (let i = 0; i <= times; i++) {
+    
+        for (let i = 1; i <= times; i++) {
             const group = info.bad.map(x => x + i * info.C);
             res.push(...group);
             groups.push(group);
         }
-
+    
         return {
             result: res,
-            goodLength: info.good.length,
+            goodLength,
             groups,
             badRootIndex: info.good.length,
             badRootSourceIndex: info.badRoot
@@ -255,24 +263,6 @@
             }
         },
 
-        countStep(seq) {
-            const expanded = expandHPrSS(seq, 1);
-
-            if (!expanded || !expanded.groups || expanded.groups.length < 2) {
-                return seq;
-            }
-
-            const firstNewGroup = expanded.groups[1];
-
-            if (!firstNewGroup || firstNewGroup.length === 0) {
-                return seq;
-            }
-
-            const prefix = seq.slice(0, expanded.goodLength);
-
-            return prefix.concat([firstNewGroup[0]]);
-        },
-
         expand(seq, times) {
             return expandHPrSS(seq, times);
         },
@@ -281,7 +271,9 @@
             initial() {
                 return [
                     makeHPrSSLimitItem(2),
-                    makeHPrSSLimitItem(3)
+                    makeHPrSSLimitItem(3),
+                    makeHPrSSLimitItem(4),
+                    makeHPrSSLimitItem(5)
                 ];
             },
 

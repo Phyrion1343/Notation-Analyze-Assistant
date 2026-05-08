@@ -517,7 +517,7 @@
 
     registerNotation({
         id: 'nfBSM',
-        name: 'nfBSM',
+        name: '(nf)BSM',
         placeholder: '例如：(0)(1,1)(2,1)',
         defaultTimes: 3,
         lexDesc: true,
