@@ -361,6 +361,7 @@ button:active {
     color: #713d38;
 }
 
+.expand-less-btn,
 .expand-more-btn {
     margin: 0 0 0 4px;
     padding: 0;
@@ -390,6 +391,7 @@ button:active {
         box-shadow 0.15s ease;
 }
 
+.expand-less-btn:hover,
 .expand-more-btn:hover {
     background-color: #edf7f0;
     color: #365943;
@@ -397,9 +399,15 @@ button:active {
     box-shadow: 0 0 0 3px rgba(127, 167, 141, 0.18);
 }
 
+.expand-less-btn:active,
 .expand-more-btn:active {
     background-color: #dfeee5;
     transform: translateY(1px);
+}
+
+.expand-less-btn::before {
+    content: "−";
+    transform: translateY(-1.5px);
 }
 
 .limit-expression {
@@ -594,7 +602,8 @@ button:active {
     box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
 }
 
-.compact-sequence .expand-more-btn {
+.sequence-container.compact-sequence .expand-more-btn,
+.sequence-container.compact-sequence .expand-less-btn {
     margin-left: 4px;
 }
 
@@ -912,7 +921,7 @@ const TOUCH_MOVE_CANCEL_DISTANCE = 12;
 
 let indentEnabled = true;
 let showAnalysis = false;
-let autoCenterEnabled = true;
+let autoCenterEnabled = false;
 let showColumnLabels = false;
 
 let showCountSequence = false;
@@ -1266,6 +1275,19 @@ function updateExistingExpansion(recordId, newTimes, shouldScroll = true) {
     return true;
 }
 
+function decreaseExpansion(recordId) {
+    const state = getState();
+    const record = state.history.find(r => r.id === recordId);
+
+    if (!record || record.isLimit) return;
+
+    if (record.times <= 0) return;
+
+    const newTimes = record.times - 1;
+
+    updateExistingExpansion(recordId, newTimes, true);
+}
+
 function insertSequence() {
     const adapter = getAdapter();
     const state = getState();
@@ -1303,7 +1325,6 @@ function insertSequence() {
 
         updateExistingExpansion(existedRecord.id, times, true);
 
-        sequenceInput.value = '';
         cancelInsertAfter();
 
         return;
@@ -1760,6 +1781,84 @@ function computeCountValue(seq, successorElement) {
     return value;
 }
 
+function computeCountValueWithAdapter(adapter, notationId, seq, successorElement) {
+    let formatted;
+    try {
+        formatted = adapter.format(seq);
+    } catch {
+        formatted = JSON.stringify(seq);
+    }
+
+    const cacheKey = notationId + '|' + successorElement + '|' + formatted;
+
+    if (countSequenceCache.has(cacheKey)) {
+        return countSequenceCache.get(cacheKey);
+    }
+
+    let current = clone(seq);
+    let count = 0;
+    const MAX_STEPS = 1000;
+
+    function isSucc(s) {
+        if (!s || s.length === 0) return true;
+
+        if (adapter.isSuccessor) {
+            try {
+                return adapter.isSuccessor(s);
+            } catch {
+                return false;
+            }
+        }
+
+        try {
+            const expanded = adapter.expand(clone(s), 1);
+            if (!expanded || !expanded.result) return true;
+            return expanded.result.length < s.length;
+        } catch {
+            return true;
+        }
+    }
+
+    function step(s) {
+        if (adapter.countStep) {
+            return adapter.countStep(clone(s));
+        }
+
+        const expanded = adapter.expand(clone(s), 1);
+
+        if (
+            expanded &&
+            expanded.groups &&
+            expanded.groups.length > 0 &&
+            expanded.groups[0] &&
+            expanded.groups[0].length > 0
+        ) {
+            const good = s.slice(0, -1);
+            return good.concat([clone(expanded.groups[0][0])]);
+        }
+
+        if (expanded && expanded.result) {
+            return expanded.result;
+        }
+
+        throw new Error('无法计数展开');
+    }
+
+    while (!isSucc(current)) {
+        if (count > MAX_STEPS) {
+            countSequenceCache.set(cacheKey, '?');
+            return '?';
+        }
+
+        current = step(current);
+        count++;
+    }
+
+    const value = successorElement + count;
+    countSequenceCache.set(cacheKey, value);
+    return value;
+}
+
 function getCountSequenceTargetsFromSeq(seq) {
     const adapter = getAdapter();
 
@@ -1821,8 +1920,23 @@ function createCountSequenceLine(record, useResult = false) {
 
     if (useResult && !showResultCountSequence) return '';
 
-    const targets = getCountSequenceTargets(record, useResult);
+    const adapter = getAdapter();
 
+    if (adapter.getCountSequenceValues) {
+        try {
+            const values = adapter.getCountSequenceValues(record, countSuccessorElement, useResult);
+            if (Array.isArray(values) && values.length > 0) {
+                return `
+                    <div class="analysis-line">
+                        <span class="analysis-line-label">Count sequence:</span>
+                        ${escapeHTML(values.join(','))}
+                    </div>
+                `;
+            }
+        } catch {}
+    }
+
+    const targets = getCountSequenceTargets(record, useResult);
     if (!targets || targets.length === 0) return '';
 
     const values = targets.map(seq => {
@@ -1833,11 +1947,9 @@ function createCountSequenceLine(record, useResult = false) {
         }
     });
 
-    const label = useResult ? 'Count sequence:' : 'Count sequence:';
-
     return `
         <div class="analysis-line">
-            <span class="analysis-line-label">${label}</span>
+            <span class="analysis-line-label">Count sequence:</span>
             ${escapeHTML(values.join(','))}
         </div>
     `;
@@ -1993,6 +2105,17 @@ function createClickableSequence(record, options = {}) {
                 + `</div>`;
         }
 
+        if (options.minus && record.times > 0) {
+            s += `<div class="sequence-column">`
+                + `<div class="compact-token-group">`
+                + `<button class="expand-less-btn" `
+                + `data-action="decrease" `
+                + `data-expansion-id="${record.id}"></button>`
+                + `</div>`
+                + labelHTML('&nbsp;')
+                + `</div>`;
+        }
+
         s += `</div>`;
         return s;
     }
@@ -2045,6 +2168,15 @@ function createClickableSequence(record, options = {}) {
             + `<button class="expand-more-btn" `
             + `data-action="continue" `
             + `data-expansion-id="${record.id}">+</button>`
+            + labelHTML('&nbsp;')
+            + `</div>`;
+    }
+
+    if (options.minus && record.times > 0) {
+        s += `<div class="sequence-column">`
+            + `<button class="expand-less-btn" `
+            + `data-action="decrease" `
+            + `data-expansion-id="${record.id}"></button>`
             + labelHTML('&nbsp;')
             + `</div>`;
     }
@@ -2109,7 +2241,7 @@ function updateDisplay() {
 
             html += `
                 <div class="expansion-result">
-                    Result: ${createClickableSequence(record, { plus: true })}
+                    Result: ${createClickableSequence(record, { plus: true, minus: true })}
                 </div>
             `;
             
@@ -2544,6 +2676,11 @@ outputDiv.addEventListener('click', event => {
         return;
     }
 
+    if (action === 'decrease') {
+        decreaseExpansion(id);
+        return;
+    }
+
     if (action === 'token') {
         if (suppressNextTokenClick) {
             event.preventDefault();
@@ -2820,7 +2957,6 @@ document.getElementById('reloadBtn').addEventListener('click', () => {
     state.counter = 0;
     state.insertAfterTarget = null;
 
-    sequenceInput.value = '';
     timesInput.value = getAdapter().defaultTimes ?? 3;
 
     initializeLimitExpression(currentNotationId);
@@ -3013,19 +3149,22 @@ registerNotation({
     }
 });
 </script>
+<script src="Notations/pps4.js"></script>
 <script src="Notations/0Y.js"></script>
 <script src="Notations/1Y.js"></script>
 <script src="Notations/bdhm.js"></script>
 <script src="Notations/bhm.js"></script>
+<script src="Notations/blm.js"></script>
 <script src="Notations/bm4.js"></script>
+<script src="Notations/nfBSM.js"></script>
 <script src="Notations/cms.js"></script>
 <script src="Notations/den3.js"></script>
 <script src="Notations/dsm.js"></script>
 <script src="Notations/gprss.js"></script>
+<script src="Notations/hprss.js"></script>
 <script src="Notations/ibms(test).js"></script>
 <script src="Notations/lmn.js"></script>
 <script src="Notations/mm311.js"></script>
-<script src="Notations/nfBSM.js"></script>
 <script src="Notations/prrs.js"></script>
 <script src="Notations/rprss.js"></script>
 <script src="Notations/tωmn.js"></script>
